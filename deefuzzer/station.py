@@ -46,6 +46,8 @@ import shout
 import urllib
 import mimetypes
 
+import hashlib
+
 from threading import Thread
 from player import *
 from recorder import *
@@ -352,7 +354,20 @@ class Station(Thread):
             new_playlist = self.get_playlist()
             lp_new = len(new_playlist)
 
-            if lp_new != self.lp or not self.counter:
+            # calculate HASH of Playlist Text, to see if something was changed (even if the length is the same)
+            hash_object = hashlib.sha1(''.join(new_playlist))
+            hash_new = hash_object.hexdigest()
+
+            playlist_changed = False
+            if hash_new != self.hash_playlist:
+                self.logger.write_info('Station ' + self.channel_url + \
+                                 ' : new hash playlist (OLD: ' + str(self.hash_playlist) + ' | NEW: ' + str(hash_new) + ')')
+                self.hash_playlist = hash_new
+                playlist_changed = True
+
+
+            #if lp_new != self.lp or not self.counter:
+            if playlist_changed == True or not self.counter:
                 self.id = 0
                 self.lp = lp_new
 
@@ -372,7 +387,8 @@ class Station(Thread):
                         if media_obj.metadata.has_key('artist'):
                             artist = media_obj.metadata['artist']
                         if not (title or artist):
-                            song = str(media_obj.file_name)
+                            #song = str(media_obj.file_name)
+                            song = os.path.splitext(str(media_obj.file_name))[0]
                         else:
                             song = artist + ' : ' + title
                         song = song.encode('utf-8')
@@ -390,9 +406,11 @@ class Station(Thread):
                     random.shuffle(playlist)
 
                 # Play new tracks first
-                for track in self.new_tracks:
-                    playlist.insert(0, track)
-                self.playlist = playlist
+                #for track in self.new_tracks:
+                #    playlist.insert(0, track)
+                #self.playlist = playlist
+
+                self.playlist = new_playlist
 
                 self.logger.write_info('Station ' + self.channel_url + \
                                  ' : generating new playlist (' + str(self.lp) + ' tracks)')
@@ -406,6 +424,15 @@ class Station(Thread):
             else:
                 media = self.playlist[self.id]
                 self.id = (self.id + 1) % self.lp
+
+            # error if file not exist
+            if os.path.isfile(media) == False:
+                self.logger.write_error('DeeFuzzing on %s :  id = %s, name = %s (File Not Exist)' \
+                    % (self.short_name, self.id, media))
+                self.logger_onair.write_error('File not exists | %s' \
+                    % (media))
+
+
             return media
         else:
             mess = 'No media in media_dir !'
@@ -461,7 +488,8 @@ class Station(Thread):
             title = media.metadata['title']
             artist = media.metadata['artist']
             if not (title or artist):
-                song = str(media.file_title)
+                #song = str(media.file_title)
+                song = os.path.splitext(str(media.file_title))[0]
             else:
                 song = artist + ' : ' + title
 
@@ -539,7 +567,8 @@ class Station(Thread):
         self.artist = self.artist.replace('_', ' ')
 
         if not (self.title or self.artist):
-            song = str(self.current_media_obj[0].file_name)
+            #song = str(self.current_media_obj[0].file_name)
+            song = os.path.splitext(str(self.current_media_obj[0].file_name))[0]
         else:
             song = self.artist + ' : ' + self.title
 

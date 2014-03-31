@@ -5,6 +5,7 @@ from mp3 import *
 from ogg import *
 from webm import *
 from logger import *
+from logger_onair import *
 from osc import *
 from twitt import *
 from utils import *

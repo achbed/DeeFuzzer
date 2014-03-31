@@ -59,6 +59,12 @@ class DeeFuzzer(Thread):
             self.logger = Logger(self.conf['deefuzzer']['log'])
         else:
             self.logger = Logger('.' + os.sep + 'deefuzzer.log')
+
+        if 'log_onair' in self.conf['deefuzzer'].keys():
+            self.logger_onair = LoggerOnAIR(self.conf['deefuzzer']['log_onair'])
+        else:
+            self.logger_onair = LoggerOnAIR('.' + os.sep + 'deefuzzer.onair.log')
+
         if 'm3u' in self.conf['deefuzzer'].keys():
             self.m3u = self.conf['deefuzzer']['m3u']
         else:
@@ -113,7 +119,7 @@ class DeeFuzzer(Thread):
                 station = self.conf['deefuzzer']['station']
             else:
                 station = self.conf['deefuzzer']['station'][i]
-            self.stations.append(Station(station, q, self.logger, self.m3u))
+            self.stations.append(Station(station, q, self.logger, self.logger_onair, self.m3u))
 
         if self.m3u:
             self.set_m3u_playlist()
