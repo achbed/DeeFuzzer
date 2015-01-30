@@ -65,7 +65,7 @@ class Station(ThreadQueueLog):
     start_time = time.time()
     server_ping = False
     playlist = []
-    media_source = None
+    source = None
     lp = 1
     player_mode = 1
     osc_control_mode = 0
@@ -114,15 +114,15 @@ class Station(ThreadQueueLog):
         # Media
         if 'm3u' in self.station['media']:
             if not self.station['media']['m3u'].strip() == '':
-                self.media_source = self._path_add_base(self.station['media']['m3u'])
+                self.source = self._path_add_base(self.station['media']['m3u'])
 
         if 'dir' in self.station['media']:
             if not self.station['media']['dir'].strip() == '':
-                self.media_source = self._path_add_base(self.station['media']['dir'])
+                self.source = self._path_add_base(self.station['media']['dir'])
 
         if 'source' in self.station['media']:
             if not self.station['media']['source'].strip() == '':
-                self.media_source = self._path_add_base(self.station['media']['source'])
+                self.source = self._path_add_base(self.station['media']['source'])
 
         self.media_format = self.station['media']['format']
         self.shuffle_mode = int(self.station['media']['shuffle'])
@@ -401,10 +401,10 @@ class Station(ThreadQueueLog):
         file_list = []
 
         try:
-            if os.path.isdir(self.media_source):
+            if os.path.isdir(self.source):
                 self.q.get(1)
                 try:
-                    for root, dirs, files in os.walk(self.media_source):
+                    for root, dirs, files in os.walk(self.source):
                         for file in files:
                             s = file.split('.')
                             ext = s[len(s) - 1]
@@ -415,10 +415,10 @@ class Station(ThreadQueueLog):
                     pass
                 self.q.task_done()
 
-            if os.path.isfile(self.media_source):
+            if os.path.isfile(self.source):
                 self.q.get(1)
                 try:
-                    f = open(self.media_source, 'r')
+                    f = open(self.source, 'r')
                     try:
                         for path in f.readlines():
                             path = path.strip()
