@@ -44,6 +44,16 @@ Because our aim is to get DeeFuzzer as light as possible it is NOT capable of re
 News
 ====
 
+0.8
+
+ * Additional refactoring
+ * Added new core logging classes with additional options
+ * Added new Playlist classes
+ * Added support for PLS playlist files
+ * Jingles now use the same playlist class and can take advantage of M3U and PLS playlist types
+ * Now requires mutagen package
+ * Added Prev Track option to OSC control
+
 0.7
 
  * Huge refactoring which should be compatible with old setups, but before updating **please read** the `updated example <https://github.com/yomguy/DeeFuzzer/blob/dev/example/deefuzzer_doc.xml>`_ and the following news.
@@ -162,7 +172,7 @@ in the config file (see example/deefuzzer.xml again..).
 
 The available parameters are:
 
-    * playing: next track
+    * playing: next and prev track
     * twitting: start and stop
     * relaying: start and stop
     * jingling: start and stop

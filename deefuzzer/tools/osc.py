@@ -50,8 +50,8 @@ class OSCController(Thread):
         except liblo.ServerError, err:
             print str(err)
 
-    def add_method(self, path, type, method):
-        self.server.add_method(path, type, method)
+    def add_method(self, path, method_type, method):
+        self.server.add_method(path, method_type, method)
 
     def run(self):
         while True:

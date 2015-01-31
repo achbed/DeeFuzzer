@@ -16,78 +16,133 @@ import string
 import mimetypes
 from itertools import chain
 from deefuzzer.tools import *
+from Playlist import *
+
+import mutagen
 
 mimetypes.add_type('application/x-yaml', '.yaml')
 
 
+def path_strip_parents(path):
+    """
+    Strips all parent directory requests from a path.  Prevents attacks like ../../../../etc/passwd
+    :param path: The path to check
+    :return: The cleaned path
+    """
+    newpath = None
+    base = path
+    while base:
+        base, tail = os.path.split(base)
+        if tail:
+            if tail not in [".", ".."]:
+                if newpath:
+                    newpath = os.path.join(tail, newpath)
+                else:
+                    newpath = tail
+
+    return newpath
+
+
 def clean_word(word):
+    """
+    Cleans a string to remove excess whitespace and certain characters that may cause issues with export functions
+    Specifically, replaces any instances of &[];"*:, with an underscore, and strips all characters that do not match
+    the regex definition of a word (\w).
+    :param word: The word to clean
+    :return: The cleaned word
+    """
     """ Return the word without excessive blank spaces, underscores and
     characters causing problem to exporters"""
     word = re.sub("^[^\w]+", "", word)  # trim the beginning
     word = re.sub("[^\w]+$", "", word)  # trim the end
     word = re.sub("_+", "_", word)  # squeeze continuous _ to one _
-    word = re.sub("^[^\w]+", "", word)  # trim the beginning _
+    # word = re.sub("^[^\w]+", "", word)  # trim the beginning _
     # word = string.replace(word,' ','_')
     # word = string.capitalize(word)
-    dict = '&[];"*:,'
-    for letter in dict:
+    conv_dict = '&[];"*:,'
+    for letter in conv_dict:
         word = string.replace(word, letter, '_')
     return word
 
 
-def get_file_info(media):
-    file_name = media.split(os.sep)[-1]
+def get_file_info(filepath):
+    file_name = filepath.split(os.sep)[-1]
     file_title = file_name.split('.')[:-1]
     file_title = '.'.join(file_title)
     file_ext = file_name.split('.')[-1]
     return file_name, file_title, file_ext
 
 
-def is_absolute_path(path):
-    return os.sep == path[0]
-
-
-def merge_defaults(setting, default):
+def merge_dict(replacement_keys, original_keys):
+    """
+    Combines all keys for two dict objects.  Recursively scans all sub-dicts (if present) for replacements as well.
+    :param replacement_keys: The dict containing keys to overwrite into the base
+    :param original_keys: The dict to use as a base
+    :return: A newly combined dict object
+    """
     combined = {}
-    for key in set(chain(setting, default)):
-        if key in setting:
-            if key in default:
-                if isinstance(setting[key], dict) and isinstance(default[key], dict):
-                    combined[key] = merge_defaults(setting[key], default[key])
+    for key in set(chain(replacement_keys, original_keys)):
+        if key in replacement_keys:
+            if key in original_keys:
+                if isinstance(replacement_keys[key], dict) and isinstance(original_keys[key], dict):
+                    combined[key] = merge_dict(replacement_keys[key], original_keys[key])
                 else:
-                    combined[key] = setting[key]
+                    combined[key] = replacement_keys[key]
             else:
-                combined[key] = setting[key]
+                combined[key] = replacement_keys[key]
         else:
-            combined[key] = default[key]
+            combined[key] = original_keys[key]
     return combined
 
 
-def replace_all(option, repl):
-    if isinstance(option, list):
+def replace_all(source, repl, tags=None):
+    """
+    Performs a search and replace on a given object, using a dict of possible replacements.  If a list or dict
+    if given, then all values within the list or dict are scanned for strings to perform replacement on.
+    :param source: The object to search
+    :param repl: A dict continaing search and replace data.  Keys will be used to match, values will be the replacements
+    :param tags: A dict containing "open" and "close" tags to use during the search.  Defaults are open:"[", close:"]"
+    :return: A new object with replacements performed
+    """
+    if not tags:
+        tags = {}
+    if not tags["open"]:
+        tags["open"] = "["
+    if not tags["close"]:
+        tags["close"] = "]"
+
+    output = source
+
+    if isinstance(output, list):
         r = []
-        for i in option:
+        for i in output:
             r.append(replace_all(i, repl))
         return r
-    elif isinstance(option, dict):
+    elif isinstance(output, dict):
         r = {}
-        for key in option.keys():
-            r[key] = replace_all(option[key], repl)
+        for key in output.keys():
+            r[key] = replace_all(output[key], repl)
         return r
-    elif isinstance(option, str):
-        r = option
+    elif isinstance(output, str):
+        r = output
         for key in repl.keys():
-            r = r.replace('[' + key + ']', repl[key])
+            f = ("%s%s%s" % (tags["open"], key, tags["close"]))
+            r = r.replace(f, repl[key])
         return r
-    return option
+    return output
 
 
-def get_conf_dict(file):
-    mime_type = mimetypes.guess_type(file)[0]
+def get_conf_dict(filepath):
+    """
+    Gets a dict object containing a configuration file
+    :param filepath: The full path to the configuration file to load
+    :return: A dict object with the configuration file contents
+    """
+    mime_type = mimetypes.guess_type(filepath)[0]
 
     # Do the type check first, so we don't load huge files that won't be used
     if 'xml' in mime_type:
-        confile = open(file, 'r')
+        confile = open(filepath, 'r')
         data = confile.read()
         confile.close()
         return xmltodict(data, 'utf-8')
@@ -98,14 +153,14 @@ def get_conf_dict(file):
             return loader.construct_scalar(node).encode('utf-8')
 
         yaml.add_constructor(u'tag:yaml.org,2002:str', custom_str_constructor)
-        confile = open(file, 'r')
+        confile = open(filepath, 'r')
         data = confile.read()
         confile.close()
         return yaml.load(data)
     elif 'json' in mime_type:
         import json
 
-        confile = open(file, 'r')
+        confile = open(filepath, 'r')
         data = confile.read()
         confile.close()
         return json.loads(data)
@@ -113,12 +168,61 @@ def get_conf_dict(file):
     return False
 
 
-def folder_contains_music(folder):
+def folder_contains_audio(folder):
+    """
+    Checks a path for any audio files.
+    :param folder: Path to check for audio files
+    :return: True if any supported audio files are found in the folder, False if not.
+    """
     files = os.listdir(folder)
-    for file in files:
-        filepath = os.path.join(folder, file)
-        if os.path.isfile(filepath):
-            mime_type = mimetypes.guess_type(filepath)[0]
-            if 'audio/mpeg' in mime_type or 'audio/ogg' in mime_type:
-                return True
+    for fn in files:
+        filepath = os.path.join(folder, fn)
+        if isaudio(filepath):
+            return True
     return False
+
+
+def isaudio(filepath):
+    """
+    Detects if the given file path is a supported audio file.
+    :param filepath: The path to check
+    :return: True if the file is a supported audio file type, False if not.
+    """
+    if not os.path.isfile(filepath):
+        return False
+
+    fileref = mutagen.File(filepath)
+    if not fileref:
+        return False
+    mime_type = fileref.mime
+    if 'audio/mpeg' in mime_type:
+        return True
+    if 'audio/ogg' in mime_type:
+        return True
+    # Add detection for more file types as needed here
+    return False
+
+
+def get_md5(word):
+    """
+    Returns an MD5 hash using the best available hashing method.  Uses hashlib if available, with fallback to md5
+    :param word: The string to hash
+    :return: The hexdigest hash value
+    """
+    try:
+        import hashlib
+        return hashlib.md5(word).hexdigest()
+    except:
+        pass
+
+    try:
+        import md5
+        a = md5.new()
+        a.update(word)
+        return a.hexdigest()
+    except:
+        pass
+
+    return ""
+
+

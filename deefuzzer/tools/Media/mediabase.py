@@ -1,11 +1,16 @@
-__author__ = 'Dennis Wallace'
+# -*- coding: utf-8 -*-
 
+from deefuzzer.tools.Media.webm import *
 import tempfile
 
+
 class MediaBase(object):
-    """Base Media class.  All media objects should inherit from this class
+    """
+    Base Media class.  All media objects should inherit from this class
     to allow common functions to be used in core code.  See MP3 and OGG classes
-    for examples on how to configure a subclass."""
+    for examples on how to configure a subclass, and media.py to add the new class into the autodetection
+    function.
+    """
 
     def __init__(self):
         object.__init__(self)
@@ -104,9 +109,9 @@ class MediaBase(object):
             return ''
         r = self.metadata[key]
         if not r:
-            r = "";
+            r = ""
         if clean:
-            r = r.replace('_',' ').strip()
+            r = r.replace('_', ' ').strip()
         return r.encode('utf-8')
 
     def get_title(self):
@@ -131,3 +136,6 @@ class MediaBase(object):
             r += ' - '
         r += t
         return r
+
+    def write_tags(self):
+        return

@@ -42,7 +42,8 @@ import datetime
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3, MPEGInfo
 from mutagen import id3
-from utils import *
+from deefuzzer.tools.utils import *
+from mediabase import *
 
 EasyID3.valid_keys["comment"] = "COMM::'XXX'"
 EasyID3.valid_keys["copyright"] = "TCOP::'XXX'"
@@ -116,15 +117,13 @@ class Mp3(MediaBase):
             # raise IOError('ExporterError: cannot write tags')
         '''
 
-        media = id3.ID3(self.media)
-        media.add(id3.TIT2(encoding=3, text=self.metadata['title'].decode('utf8')))
-        media.add(id3.TP1(encoding=3, text=self.metadata['artist'].decode('utf8')))
-        media.add(id3.TAL(encoding=3, text=self.metadata['album'].decode('utf8')))
-        media.add(id3.TDRC(encoding=3, text=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-        media.add(id3.TCO(encoding=3, text=self.metadata['genre'].decode('utf8')))
+        mediaobj = id3.ID3(self.media)
+        mediaobj.add(id3.TIT2(encoding=3, text=self.metadata['title'].decode('utf8')))
+        mediaobj.add(id3.TP1(encoding=3, text=self.metadata['artist'].decode('utf8')))
+        mediaobj.add(id3.TAL(encoding=3, text=self.metadata['album'].decode('utf8')))
+        mediaobj.add(id3.TDRC(encoding=3, text=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        mediaobj.add(id3.TCO(encoding=3, text=self.metadata['genre'].decode('utf8')))
         try:
-            media.save()
+            mediaobj.save()
         except:
             raise IOError('ExporterError: cannot write tags')
-
-

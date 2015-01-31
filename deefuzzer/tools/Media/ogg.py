@@ -40,13 +40,14 @@ import os
 import string
 import datetime
 from mutagen.oggvorbis import OggVorbis
-from utils import *
+from deefuzzer.tools.utils import *
+from mediabase import *
 
 
 class Ogg(MediaBase):
     """An OGG file object"""
 
-    def __init__(self, media):
+    def __init__(self, filepath):
         MediaBase.__init__(self)
 
         self.description = "OGG Vorbis"
@@ -54,7 +55,7 @@ class Ogg(MediaBase):
         self.extension = 'ogg'
         self.format = 'OGG'
 
-        self.media = media
+        self.media = filepath
         self.sourceobj = OggVorbis(self.media)
         self.source = self.media
         self.bitrate_default = '192'

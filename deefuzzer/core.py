@@ -172,10 +172,10 @@ class DeeFuzzer(Thread):
             options['infos']['short_name'] = '[name]'
 
         files = os.listdir(folder)
-        for file in files:
-            filepath = os.path.join(folder, file)
+        for fn in files:
+            filepath = os.path.join(folder, fn)
             if os.path.isdir(filepath):
-                if folder_contains_music(filepath):
+                if folder_contains_audio(filepath):
                     self.create_station(filepath, options)
 
     def station_exists(self, name):
@@ -200,7 +200,7 @@ class DeeFuzzer(Thread):
         if self.station_exists(name):
             return
         self._info('Creating station for folder ' + folder)
-        d = dict(path=folder, name=name)
+        d = {path: "folder", name: "name"}
         for i in options.keys():
             if 'folder' not in i:
                 s[i] = replace_all(options[i], d)
@@ -216,7 +216,7 @@ class DeeFuzzer(Thread):
         if isinstance(folder, dict) or isinstance(folder, list):
             # We were given a list or dictionary.  Loop though it and load em all
             for f in folder:
-                self.load_station_configs(f)
+                self.load_stations_fromconfig(f)
             return
 
         if os.path.isfile(folder):
@@ -230,16 +230,16 @@ class DeeFuzzer(Thread):
 
         self._info('Loading station config files in ' + folder)
         files = os.listdir(folder)
-        for file in files:
-            filepath = os.path.join(folder, file)
+        for fn in files:
+            filepath = os.path.join(folder, fn)
             if os.path.isfile(filepath):
                 self.load_station_config(filepath)
 
-    def load_station_config(self, file):
+    def load_station_config(self, filepath):
         """Load station configuration(s) from a config file."""
 
-        self._info('Loading station config file ' + file)
-        stationdef = get_conf_dict(file)
+        self._info('Loading station config file ' + filepath)
+        stationdef = get_conf_dict(filepath)
         if isinstance(stationdef, dict):
             if 'station' in stationdef:
                 if isinstance(stationdef['station'], dict):
@@ -305,7 +305,7 @@ class DeeFuzzer(Thread):
                     # Apply station defaults if they exist
                     if 'stationdefaults' in self.conf['deefuzzer']:
                         if isinstance(self.conf['deefuzzer']['stationdefaults'], dict):
-                            self.station_settings[i] = merge_defaults(
+                            self.station_settings[i] = merge_dict(
                                 self.station_settings[i],
                                 self.conf['deefuzzer']['stationdefaults']
                             )

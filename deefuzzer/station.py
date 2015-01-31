@@ -58,42 +58,60 @@ from tools import *
 class Station(ThreadQueueLog):
     """a DeeFuzzer shouting station thread"""
 
-    id = 0
-    valid = False
-    counter = 0
-    delay = 0
-    start_time = time.time()
-    server_ping = False
-    playlist = []
-    source = None
-    lp = 1
-    player_mode = 1
-    osc_control_mode = 0
-    twitter_mode = 0
-    jingles_mode = 0
-    relay_mode = 0
-    record_mode = 0
-    run_mode = 1
-    appendtype = 0
-    feeds_json = 0
-    feeds_rss = 1
-    feeds_mode = 1
-    feeds_playlist = 1
-    feeds_showfilepath = 0
-    feeds_showfilename = 0
-    short_name = ''
-    channelIsOpen = False
-    starting_id = -1
-    jingles_frequency = 2
-    statusfile = ''
-    base_directory = ''
-
-    def __init__(self, station, q, logqueue, m3u):
-        ThreadQueueLog.__init__(self, logqueue)
+    def __init__(self, station, lock_queue, log_queue, m3u):
+        ThreadQueueLog.__init__(self, log_queue)
         
+        self.new_tracks = []
+        self.mediafile = ""
+        self.jingle_id = 0
+        self.jingles_mode = 0
+        self.jingles_length = 0
+        self.jingles_playlist = None
+        self.next_media = 0
+        self.twitter = None
+        self.twitter_mode = 0
+        self.rec_file = ""
+        self.id = -1
+        self.valid = False
+        self.counter = -1
+        self.delay = 0
+        self.start_time = time.time()
+        self.server_ping = False
+        self.playlist = []
+        self.source = None
+        self.lp = 1
+        self.player_mode = 1
+        self.osc_control_mode = 0
+        self.twitter_mode = 0
+        self.jingles_mode = 0
+        self.relay_mode = 0
+        self.record_mode = 0
+        self.run_mode = 1
+        self.appendtype = 0
+        self.feeds_json = 0
+        self.feeds_rss = 1
+        self.feeds_mode = 1
+        self.feeds_playlist = 1
+        self.feeds_showfilepath = 0
+        self.feeds_showfilename = 0
+        self.short_name = ''
+        self.channelIsOpen = False
+        self.starting_id = -1
+        self.jingles_frequency = 2
+        self.statusfile = ''
+        self.base_directory = ''
+        self.recorder = None
+        self.m3u_url = ""
+        self.feeds_url = ""
+        self.stream = None
+        self.prefix = ""
+        self.title = ""
+        self.artist = ""
+        self.song = ""
+        self.metadata_file = ""
+
         self.station = station
-        self.q = q
-        self.logqueue = logqueue
+        self.q = lock_queue
         self.m3u = m3u
 
         self.current_media_obj = MediaBase()
@@ -234,6 +252,7 @@ class Station(ThreadQueueLog):
                 self.osc_controller = OSCController(self.osc_port)
                 # OSC paths and callbacks
                 self.osc_controller.add_method('/media/next', 'i', self.media_next_callback)
+                self.osc_controller.add_method('/media/prev', 'i', self.media_prev_callback)
                 self.osc_controller.add_method('/media/relay', 'i', self.relay_callback)
                 self.osc_controller.add_method('/twitter', 'i', self.twitter_callback)
                 self.osc_controller.add_method('/jingles', 'i', self.jingles_callback)
@@ -251,7 +270,9 @@ class Station(ThreadQueueLog):
             if 'frequency' in self.station['jingles']:
                 self.jingles_frequency = int(self.station['jingles']['frequency'])
             if 'dir' in self.station['jingles']:
-                self.jingles_dir = self._path_add_base(self.station['jingles']['dir'])
+                self.jingles_source = self._path_add_base(self.station['jingles']['dir'])
+            if 'source' in self.station['jingles']:
+                self.jingles_source = self._path_add_base(self.station['jingles']['source'])
             if self.jingles_mode == 1:
                 self.jingles_callback('/jingles', [1])
 
@@ -293,15 +314,37 @@ class Station(ThreadQueueLog):
         
     def _path_add_base(self, a):
         self.log_debug('_path_add_base: Attempting to join "%s" and "%s"' % (self.base_directory, a))
-        r = os.path.join(self.base_directory, a)
-        self.log_debug('_path_add_base: Result is "%s"' % (r))
+        r = path_strip_parents(os.path.join(self.base_directory, a))
+        self.log_debug('_path_add_base: Result is "%s"' % r)
         return r
 
     def _path_m3u_rel(self, a):
         self.log_debug('_path_m3u_rel: Attempting to join "%s" and "%s"' % (os.path.dirname(self.source), a))
         r = os.path.join(os.path.dirname(self.source), a)
-        self.log_debug('_path_m3u_rel: Result is "%s"' % (r))
+        self.log_debug('_path_m3u_rel: Result is "%s"' % r)
         return r
+
+    def init_jingles(self):
+        if not self.jingles_playlist:
+            self.jingles_mode = 0
+            self.jingles_length = 0
+            self.jingles_playlist = None
+            try:
+                self.jingles_playlist = self.get_playlist(self.jingles_source)
+                if self.jingles_shuffle:
+                    self.jingles_playlist.shuffle()
+                self.jingles_length = len(self.jingles_playlist)
+                self.jingles_playlist.frequency = self.jingles_frequency
+            except:
+                pass
+            return
+
+        if self.jingles_playlist.stale():
+            self.jingles_playlist.read_playlist()
+            if self.jingles_shuffle:
+                self.jingles_playlist.shuffle()
+            self.jingles_length = len(self.jingles_playlist)
+            self.jingles_playlist.frequency = self.jingles_frequency
 
     def run_callback(self, path, value):
         value = value[0]
@@ -309,9 +352,15 @@ class Station(ThreadQueueLog):
         message = "received OSC message '%s' with arguments '%d'" % (path, value)
         self.log_info(message)
 
+    def media_prev_callback(self, path, value):
+        if not self.relay_mode:
+            self.next_media = -1
+        message = "received OSC message '%s' with arguments '%d'" % (path, value)
+        self.log_info(message)
+
     def media_next_callback(self, path, value):
-        value = value[0]
-        self.next_media = value
+        if not self.relay_mode:
+            self.next_media = 1
         message = "received OSC message '%s' with arguments '%d'" % (path, value)
         self.log_info(message)
 
@@ -347,10 +396,7 @@ class Station(ThreadQueueLog):
 
     def jingles_callback(self, path, value):
         value = value[0]
-        if value:
-            self.jingles_list = self.get_jingles()
-            self.jingles_length = len(self.jingles_list)
-            self.jingle_id = 0
+        self.init_jingles()
         self.jingles_mode = value
         message = "received OSC message '%s' with arguments '%d'" % (path, value)
         self.log_info(message)
@@ -374,18 +420,14 @@ class Station(ThreadQueueLog):
 
             if self.type == 'icecast':
                 date = datetime.datetime.now().strftime("%Y")
-                media = None
-                if self.channel.format == 'mp3':
-                    media = Mp3(self.record_dir + os.sep + self.rec_file)
-                if self.channel.format == 'ogg':
-                    media = Ogg(self.record_dir + os.sep + self.rec_file)
-                if media:
-                    media.metadata = {'artist': self.artist.encode('utf-8'),
-                                      'title': self.title.encode('utf-8'),
-                                      'album': self.short_name.encode('utf-8'),
-                                      'genre': self.channel.genre.encode('utf-8'),
-                                      'date': date.encode('utf-8'), }
-                    media.write_tags()
+                media_file = new_media(os.path.join(self.record_dir, self.rec_file))
+                if media_file:
+                    media_file.metadata = {'artist': self.artist.encode('utf-8'),
+                                           'title': self.title.encode('utf-8'),
+                                           'album': self.short_name.encode('utf-8'),
+                                           'genre': self.channel.genre.encode('utf-8'),
+                                           'date': date.encode('utf-8'), }
+                    media_file.write_tags()
 
         self.record_mode = value
         message = "received OSC message '%s' with arguments '%d'" % (path, value)
@@ -397,54 +439,18 @@ class Station(ThreadQueueLog):
         message = "received OSC message '%s' with arguments '%d'" % (path, value)
         self.log_info(message)
 
-    def get_playlist(self):
-        file_list = []
+    def get_playlist(self, source=None):
+        file_list = None
+        if not source:
+            source = self.source
 
+        self.q.get(1)
         try:
-            if os.path.isdir(self.source):
-                self.q.get(1)
-                try:
-                    for root, dirs, files in os.walk(self.source):
-                        for file in files:
-                            s = file.split('.')
-                            ext = s[len(s) - 1]
-                            if ext.lower() == self.channel.format and not os.sep + '.' in file:
-                                file_list.append(root + os.sep + file)
-                    file_list.sort()
-                except:
-                    pass
-                self.q.task_done()
-
-            if os.path.isfile(self.source):
-                self.q.get(1)
-                try:
-                    f = open(self.source, 'r')
-                    try:
-                        for path in f.readlines():
-                            path = path.strip()
-                            if '#' != path[0]:
-                                fp = self._path_m3u_rel(path)
-                                if os.path.isfile(fp):
-                                    file_list.append(fp)
-                    except:
-                        f.close()
-                except:
-                    pass
-                self.q.task_done()
+            file_list = new_playlist(source)
         except:
             pass
+        self.q.task_done()
 
-        return file_list
-
-    def get_jingles(self):
-        file_list = []
-        for root, dirs, files in os.walk(self.jingles_dir):
-            for file in files:
-                s = file.split('.')
-                ext = s[len(s) - 1]
-                if ext.lower() == self.channel.format and not os.sep + '.' in file:
-                    file_list.append(root + os.sep + file)
-        file_list.sort()
         return file_list
 
     def tweet(self):
@@ -462,94 +468,112 @@ class Station(ThreadQueueLog):
 
     def get_next_media(self):
         # Init playlist
-        if self.lp:
-            playlist = self.playlist
-            new_playlist = self.get_playlist()
-            lp_new = len(new_playlist)
+        if not self.playlist:
+            # Attempt to init the playlist if there isn't one already.
+            self.playlist = self.get_playlist()
 
-            if not self.counter:
-                self.id = 0
-                if -1 < self.starting_id < lp_new:
-                    self.id = self.starting_id
-                self.playlist = new_playlist
-                self.lp = lp_new
-
-                # Shake it, Fuzz it !
-                if self.shuffle_mode:
-                    random.shuffle(self.playlist)
-
-                self.log_info('Generating new playlist (' + str(self.lp) + ' tracks)')
-
-            elif lp_new != self.lp:
-                self.id += 1
-                if self.id >= lp_new:
-                    self.id = 0
-                else:
-                    self.lp = lp_new
-
-                # Twitting new tracks
-                new_playlist_set = set(new_playlist)
-                playlist_set = set(playlist)
-                new_tracks = new_playlist_set - playlist_set
-                self.new_tracks = list(new_tracks.copy())
-
-                if self.twitter_mode == 1 and self.counter:
-                    self.tweet()
-
-                # Shake it, Fuzz it !
-                if self.shuffle_mode:
-                    random.shuffle(playlist)
-
-                # Play new tracks first
-                for track in self.new_tracks:
-                    playlist.insert(0, track)
-
-                self.playlist = playlist
-
-                self.log_info('Generating new playlist (' + str(self.lp) + ' tracks)')
-
-            if self.jingles_mode and not (self.counter % self.jingles_frequency) and self.jingles_length:
-                media = self.jingles_list[self.jingle_id]
-                self.jingle_id = (self.jingle_id + 1) % self.jingles_length
-            else:
-                media = self.playlist[self.id]
-                self.id = (self.id + 1) % self.lp
-
-            self.q.get(1)
-            try:
-                f = open(self.statusfile, 'w')
-                f.write(str(self.id))
-                f.close()
-                if self.feeds_playlist:
-                    self.update_feeds(self.media_to_objs(self.playlist), self.feeds_playlist_file, '(playlist)')
-            except:
-                pass
-            self.q.task_done()
-            return media
-        else:
-            mess = 'No media in source!'
-            self.log_err(mess)
+        if not self.playlist:
+            # We still do not have a valid playlist object.  Bail immediately
+            self.log_err('Error getting a playlist object!')
             self.run_mode = 0
+            return None
+
+        if not len(self.playlist):
+            # We still do not have a valid playlist object.  Bail immediately
+            self.log_err('There is no media to play!')
+            self.run_mode = 0
+            return None
+
+        if self.counter < 0:
+            # We don't have a counter value, so we haven't started yet.
+            self.id = 0
+            self.lp = len(self.playlist)
+            if -1 < self.starting_id < self.lp:
+                self.id = self.starting_id
+
+            # Shake it, Fuzz it !
+            if self.shuffle_mode:
+                self.playlist.shuffle()
+
+            self.log_info('Generated playlist (%d tracks)' % self.lp)
+
+        self.new_tracks = []
+
+        if self.playlist.stale():
+            # Twitting new tracks
+            playlist_set = self.playlist.file_list
+            self.playlist.read_playlist()
+            new_playlist_set = self.playlist.file_list
+            new_tracks = new_playlist_set - playlist_set
+            self.new_tracks = list(new_tracks.copy())
+
+            if self.twitter_mode == 1 and self.counter:
+                self.tweet()
+
+            # Get the new playlist length
+            self.lp = len(self.playlist)
+
+            # Update the playlist feed
+            if self.feeds_playlist:
+                self.update_feeds(self.media_to_objs(self.playlist.file_list), self.feeds_playlist_file, '(playlist)')
+
+            # Shake it, Fuzz it !
+            if self.shuffle_mode:
+                self.playlist.shuffle()
+
+            # Play new tracks first - NEED NEW IMPLEMENTATION OF THIS
+            # for track in self.new_tracks:
+            #     playlist.insert(0, track)
+
+            self.log_info('Updated playlist (%d tracks)' % self.lp)
+
+        # Do the checks to see if we should Jingle!
+        self.init_jingles()
+        should_jingle = self.jingles_playlist.should_play(self.counter)
+        if not self.jingles_mode:
+            should_jingle = False
+
+        if should_jingle:
+            self.jingle_id = self.jingles_playlist.next()
+            self.__save_state()
+            self.current_media_obj = self.jingles_playlist.current_track
+            return self.jingles_playlist.file_list[self.jingle_id]
+
+        if self.next_media > 0:
+            self.id = self.playlist.next()
+        if self.next_media < 0:
+            self.id = self.playlist.prev()
+        self.next_media = 0
+        self.__save_state()
+        self.current_media_obj = self.playlist.current_track
+        return self.playlist.file_list[self.id]
+
+    def __save_state(self):
+        self.q.get(1)
+        try:
+            f = open(self.statusfile, 'w')
+            f.write(str(self.id))
+            f.close()
+        except:
+            pass
+        self.q.task_done()
 
     def media_to_objs(self, media_list):
         media_objs = []
-        for media in media_list:
-            file_meta = MediaBase()
-            file_name, file_title, file_ext = get_file_info(media)
-            self.q.get(1)
-            try:
-                if file_ext.lower() == 'mp3' or mimetypes.guess_type(media)[0] == 'audio/mpeg':
-                    file_meta = Mp3(media)
-                elif file_ext.lower() == 'ogg' or mimetypes.guess_type(media)[0] == 'audio/ogg':
-                    file_meta = Ogg(media)
-                elif file_ext.lower() == 'webm' or mimetypes.guess_type(media)[0] == 'video/webm':
-                    file_meta = WebM(media)
-            except Exception, e:
-                self.log_err('Could not get specific media type class for %s' % (media))
-                self.log_err('Error: %s' % (str(e)))
-                pass
-            self.q.task_done()
-            media_objs.append(file_meta)
+        self.q.get(1)
+        try:
+            for mediapath in media_list:
+                file_meta = new_media(mediapath)
+
+                if not file_meta:
+                    self.log_err('Could not get specific media type class for %s' % mediapath)
+                    continue
+
+                media_objs.append(file_meta)
+        except:
+            pass
+        self.q.task_done()
+
         return media_objs
 
     def update_feeds(self, media_list, rss_file, sub_title):
@@ -565,51 +589,51 @@ class Station(ThreadQueueLog):
         media_absolute_playtime = _date_now
         json_data = []
 
-        for media in media_list:
+        for media_file in media_list:
             json_item = {}
-            media_stats = os.stat(media.media)
+            media_stats = os.stat(media_file.media)
             media_date = time.localtime(media_stats[8])
             media_date = time.strftime("%a, %d %b %Y %H:%M:%S +0200", media_date)
-            media.metadata['Duration'] = str(media.length).split('.')[0]
-            media.metadata['Bitrate'] = str(media.bitrate) + ' kbps'
-            media.metadata['Next play'] = str(media_absolute_playtime).split('.')[0]
+            media_file.metadata['Duration'] = str(media_file.length).split('.')[0]
+            media_file.metadata['Bitrate'] = str(media_file.bitrate) + ' kbps'
+            media_file.metadata['Next play'] = str(media_absolute_playtime).split('.')[0]
 
             media_description = '<table>'
             media_description_item = '<tr><td>%s:   </td><td><b>%s</b></td></tr>'
 
-            for key in media.metadata.keys():
-                if media.metadata[key] != '':
+            for key in media_file.metadata.keys():
+                if media_file.metadata[key] != '':
                     if key == 'filepath' and not self.feeds_showfilepath:
                         continue
                     if key == 'filename' and not self.feeds_showfilename:
                         continue
                     media_description += media_description_item % (key.capitalize(),
-                                                                   media.metadata[key])
-                    json_item[key] = media.metadata[key]
+                                                                   media_file.metadata[key])
+                    json_item[key] = media_file.metadata[key]
             if self.feeds_showfilepath:
-                media_description += media_description_item % ('Filepath', media.media)
-                json_item['filepath'] = media.media
+                media_description += media_description_item % ('Filepath', media_file.media)
+                json_item['filepath'] = media_file.media
             if self.feeds_showfilename:
-                media_description += media_description_item % ('Filename', media.file_name)
-                json_item['filename'] = media.file_name
+                media_description += media_description_item % ('Filename', media_file.file_name)
+                json_item['filename'] = media_file.file_name
             media_description += '</table>'
 
-            title, artist, song = self.get_songmeta(media)
-            media_absolute_playtime += media.length
+            title, artist, song = self.get_songmeta(media_file)
+            media_absolute_playtime += media_file.length
 
             if self.feeds_enclosure == '1':
-                media_link = self.feeds_media_url + media.file_name
+                media_link = self.feeds_media_url + media_file.file_name
                 media_link = media_link.decode('utf-8')
                 rss_item_list.append(RSSItem(
                     title=song,
                     link=media_link,
                     description=media_description,
-                    enclosure=Enclosure(media_link, str(media.size), 'audio/mpeg'),
+                    enclosure=Enclosure(media_link, str(media_file.size), 'audio/mpeg'),
                     guid=Guid(media_link),
                     pubDate=media_date, )
                 )
             else:
-                media_link = self.metadata_url + '/' + media.file_name + '.xml'
+                media_link = self.metadata_url + '/' + media_file.file_name + '.xml'
                 try:
                     media_link = media_link.decode('utf-8')
                 except:
@@ -655,7 +679,7 @@ class Station(ThreadQueueLog):
 
     def set_relay_mode(self):
         self.prefix = '#nowplaying #LIVE'
-        self.get_currentsongmeta()
+        self.get_songmeta()
 
         if self.type == 'stream-m':
             relay = URLReader(self.relay_url)
@@ -665,7 +689,12 @@ class Station(ThreadQueueLog):
         else:
             self.stream = self.player.relay_read()
 
-    def get_songmeta(self, mediaobj):
+    def get_songmeta(self, mediaobj=None):
+        selfmode = False
+        if not mediaobj:
+            mediaobj = self.current_media_obj
+            selfmode = True
+
         title = ""
         artist = ""
         song = ""
@@ -677,37 +706,27 @@ class Station(ThreadQueueLog):
         except:
             pass
 
+        if selfmode:
+            self.title = title
+            self.artist = artist
+            self.song = song
+
         return title, artist, song
-
-    def get_currentsongmeta(self):
-        self.title = ""
-        self.artist = ""
-        self.song = ""
-        self.current_media_obj = MediaBase()
-
-        try:
-            m = self.media_to_objs([self.media])
-            self.current_media_obj = m[0]
-        except:
-            self.log_info("Failed to get media object for %s" % (self.media))
-            pass
-
-        self.title, self.artist, self.song = self.get_songmeta(self.current_media_obj)
 
     def set_read_mode(self):
         self.prefix = '#nowplaying'
         
         try:
-            self.get_currentsongmeta()
+            self.get_songmeta()
             fn = self.current_media_obj.file_name
             if fn:
-                self.metadata_file = self.metadata_dir + os.sep + fn + '.xml'
+                self.metadata_file = os.path.join(self.metadata_dir, (fn + '.xml'))
             self.update_feeds([self.current_media_obj], self.feeds_current_file, '(currently playing)')
             if fn:
                 self.log_info('DeeFuzzing:  id = %s, name = %s' % (self.id, fn))
         except:
             pass
-        self.player.set_media(self.media)
+        self.player.set_media(self.mediafile)
 
         self.q.get(1)
         try:
@@ -720,7 +739,7 @@ class Station(ThreadQueueLog):
         self.q.task_done()
 
     def set_webm_read_mode(self):
-        self.channel.set_callback(FileReader(self.media).read_callback)
+        self.channel.set_callback(FileReader(self.mediafile).read_callback)
 
     def update_twitter_current(self):
         if not self.__twitter_should_update():
@@ -737,7 +756,7 @@ class Station(ThreadQueueLog):
 
         try:
             self.channel.open()
-            self.channel_delay = self.channel.delay()
+            self.channel_delay = self.channel.delay
             self.log_info('channel connected')
             self.channelIsOpen = True
             return True
@@ -770,13 +789,12 @@ class Station(ThreadQueueLog):
 
     def icecastloop_nextmedia(self):
         try:
-            self.next_media = 0
-            self.media = self.get_next_media()
+            self.mediafile = self.get_next_media()
             self.counter += 1
             self.counter = (self.counter % self.jingles_frequency) + self.jingles_frequency
             if self.relay_mode:
                 self.set_relay_mode()
-            elif os.path.exists(self.media) and not os.sep + '.' in self.media:
+            elif os.path.exists(self.mediafile) and not os.sep + '.' in self.mediafile:
                 if self.lp == 0:
                     self.log_err('has no media to stream !')
                     return False
@@ -798,7 +816,7 @@ class Station(ThreadQueueLog):
             return True
 
         if self.jingles_mode and (self.counter % self.jingles_frequency):
-            # We should be playing a jingle, and we don't send jingles to Twiitter.
+            # We should be playing a jingle, and we don't send jingles to Twitter.
             return False
         return True
 
@@ -818,7 +836,7 @@ class Station(ThreadQueueLog):
             if self.relay_mode:
                 self.set_relay_mode()
             else:
-                self.media = self.get_next_media()
+                self.mediafile = self.get_next_media()
                 self.set_webm_read_mode()
             if not self.channel_open():
                 return
@@ -889,4 +907,3 @@ class Station(ThreadQueueLog):
 
                 self.channel_close()
                 time.sleep(1)
-

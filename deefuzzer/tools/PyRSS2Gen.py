@@ -228,10 +228,10 @@ class TextInput:
 class Enclosure:
     """Publish an enclosure"""
 
-    def __init__(self, url, length, type):
+    def __init__(self, url, length, enclosure_type):
         self.url = url
         self.length = length
-        self.type = type
+        self.type = enclosure_type
 
     def publish(self, handler):
         _element(handler, "enclosure", None, {

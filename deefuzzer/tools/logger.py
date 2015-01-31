@@ -51,7 +51,7 @@ class QueueLogger(Thread):
                         continue
 
                     if 'level' not in msg:
-                       msg['level'] = 'error'
+                        msg['level'] = 'error'
                        
                     if msg['level'] == 'debug':
                         self.logger.write_debug(msg['msg'])
@@ -66,21 +66,27 @@ class QueueLogger(Thread):
             except:
                 pass
 
-class ObjectQueueLog(Object):
-    """A class inheriting Object, but with an attached QueueLogger and common logging functionality"""
-    def.__init__(self, logqueue):
-        Object.__init__(self)
+
+class ObjectQueueLog(object):
+    """A class inheriting object, but with an attached QueueLogger and common logging functionality"""
+    def __init__(self, logqueue):
+        object.__init__(self)
         self.__logqueue = logqueue
 
     def log_msg_hook(self, msg):
-        """Implement this in child classes to alter the log message before output.  Useful to prepend a class name or identifier for code tracing."""
+        """
+        Implement this in child classes to alter the log message before output.  Useful to prepend a class name
+        or identifier for code tracing.
+        :param msg: The message to alter
+        :return: The message to log
+        """
         return msg
     
-    def log_msg(self, msg, level = 'error'):
+    def log_msg(self, msg, level='error'):
         """Logs a message"""
         try:
             msg = self.log_msg_hook(str(msg))
-            obj = {'msg': str(msg)), 'level': str(level)}
+            obj = {'msg': str(msg), 'level': str(level)}
             self.__logqueue.put(obj)
         except:
             pass
@@ -109,19 +115,24 @@ class ObjectQueueLog(Object):
 class ThreadQueueLog(Thread):
     """A class inheriting Thread, but with an attached QueueLogger and common logging functionality"""
     
-    def.__init__(self, logqueue):
+    def __init__(self, logqueue):
         Thread.__init__(self)
         self.__logqueue = logqueue
     
     def log_msg_hook(self, msg):
-        """Implement this in child classes to alter the log message before output.  Useful to prepend a class name or identifier for code tracing."""
+        """
+        Implement this in child classes to alter the log message before output.  Useful to prepend a class name
+        or identifier for code tracing.
+        :param msg: The message to alter
+        :return: The message to log
+        """
         return msg
     
-    def log_msg(self, msg, level = 'error'):
+    def log_msg(self, msg, level='error'):
         """Logs a message"""
         try:
             msg = self.log_msg_hook(str(msg))
-            obj = {'msg': str(msg)), 'level': str(level)}
+            obj = {'msg': str(msg), 'level': str(level)}
             self.__logqueue.put(obj)
         except:
             pass

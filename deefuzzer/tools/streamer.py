@@ -64,9 +64,6 @@ class HTTPStreamer(Thread):
     def set_callback(self, read_callback):
         self.read_callback = read_callback
 
-    def delay(self):
-        return self.delay
-
     def open(self):
         import pycurl
 

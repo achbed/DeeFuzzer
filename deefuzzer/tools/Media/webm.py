@@ -39,13 +39,14 @@
 import os
 import string
 import datetime
-from utils import *
+from deefuzzer.tools.utils import *
+from mediabase import *
 
 
 class WebM(MediaBase):
     """An WebM file object"""
 
-    def __init__(self, media):
+    def __init__(self, filepath):
         MediaBase.__init__(self)
 
         self.description = "WebM"
@@ -53,6 +54,6 @@ class WebM(MediaBase):
         self.extension = 'webm'
         self.format = 'WebM'
 
-        self.media = media
+        self.media = filepath
         self.source = self.media
-        self.file_name, self.file_title, self.file_ext = get_file_info(media)
+        self.file_name, self.file_title, self.file_ext = get_file_info(filepath)
