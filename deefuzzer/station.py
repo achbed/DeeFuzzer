@@ -97,7 +97,7 @@ class Station(ThreadQueueLog):
         self.short_name = ''
         self.channelIsOpen = False
         self.starting_id = -1
-        self.jingles_frequency = 2
+        self.jingles_frequency = 10
         self.statusfile = ''
         self.base_directory = ''
         self.recorder = None
@@ -268,7 +268,9 @@ class Station(ThreadQueueLog):
             if 'shuffle' in self.station['jingles']:
                 self.jingles_shuffle = int(self.station['jingles']['shuffle'])
             if 'frequency' in self.station['jingles']:
-                self.jingles_frequency = int(self.station['jingles']['frequency'])
+                f = int(self.station['jingles']['frequency'])
+                if f > 1:
+                    self.jingles_frequency = f
             if 'dir' in self.station['jingles']:
                 self.jingles_source = self._path_add_base(self.station['jingles']['dir'])
             if 'source' in self.station['jingles']:

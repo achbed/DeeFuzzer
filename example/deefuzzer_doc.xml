@@ -74,14 +74,16 @@
             <genre>Various Funk Groove</genre>
         </infos>
         <jingles>
-            <!-- A path to the directory containing jingles media files.
-                The files have to be of the same type of the main media files. -->
-            <dir>/path/to/jingles</dir>
+            <!-- A path to the directory containing jingles media files, or to a playlist file.
+                The files must be of the same type of the main media files. -->
+            <source>/path/to/jingles</source>
             <!-- If '1', some media will be played between each main track of the 
                 playlist. '0' does nothing. -->
             <mode>0</mode>
             <!-- If '1', the jingle playlist will be randomized. '0' for alphanumeric order -->
             <shuffle>1</shuffle>
+            <!-- How often to play a jingle.  Must be greater than 1. Default is 10 -->
+            <frequency>10</frequency>
         </jingles>
         <media>
             <!-- The mean bitrate of the media -->
