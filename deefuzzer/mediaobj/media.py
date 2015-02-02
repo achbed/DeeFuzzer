@@ -102,3 +102,20 @@ class Media:
             return types[ext]
 
         return ""
+
+    @staticmethod
+    def get_mediatype(mime):
+        """
+        Returns the media type, given a mime type or filename extension.
+        :param mime: The type to look up
+        :return: The media type to use
+        """
+        types = {"mpeg/audio": "mp3", "audio/ogg": "ogg", "video/webm": "webm"}
+        if mime in types:
+            return types[mime]
+
+        types = ["mp3", "ogg", "webm"]
+        if mime in types:
+            return types[mime]
+
+        return ""

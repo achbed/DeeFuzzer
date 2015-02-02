@@ -147,8 +147,7 @@ class Station(ThreadQueueLog):
                 self.source = self._path_add_base(self.station['media']['source'])
 
         if 'format' in self.station['media']:
-            self.media_format = self.station['media']['format']
-            self.typefilter = Media.get_mimetype(self.media_format)
+            self.typefilter = Media.get_mimetype(self.station['media']['format'])
         self.shuffle_mode = int(self.station['media']['shuffle'])
         self.bitrate = int(self.station['media']['bitrate'])
         self.ogg_quality = int(self.station['media']['ogg_quality'])
@@ -173,40 +172,35 @@ class Station(ThreadQueueLog):
         else:
             self.type = 'icecast'
 
-        if 'stream-m' in self.type:
-            self.channel = HTTPStreamer()
-            self.channel.mount = '/publish/' + self.mountpoint
-        elif 'icecast' in self.type:
-            self.channel = shout.Shout()
-            self.channel.mount = '/' + self.mountpoint
-            if self.appendtype:
-                self.channel.mount = self.channel.mount + '.' + self.media_format
-        else:
-            self.log_err('Not a compatible server type. Choose "stream-m" or "icecast".')
-            return
+        # Jingling between each media.
+        if 'jingles' in self.station:
+            if 'mode' in self.station['jingles']:
+                self.jingles_mode = int(self.station['jingles']['mode'])
+            if 'shuffle' in self.station['jingles']:
+                self.jingles_shuffle = int(self.station['jingles']['shuffle'])
+            if 'frequency' in self.station['jingles']:
+                f = int(self.station['jingles']['frequency'])
+                if f > 1:
+                    self.jingles_frequency = f
+            if 'dir' in self.station['jingles']:
+                self.jingles_source = self._path_add_base(self.station['jingles']['dir'])
+            if 'source' in self.station['jingles']:
+                self.jingles_source = self._path_add_base(self.station['jingles']['source'])
+            if self.jingles_mode == 1:
+                self.jingles_callback('/jingles', [1])
 
-        self.channel.url = self.station['infos']['url']
-        self.channel.name = self.station['infos']['name']
-        self.channel.genre = self.station['infos']['genre']
-        self.channel.description = self.station['infos']['description']
-        self.channel.format = self.media_format
-        self.channel.host = self.station['server']['host']
-        self.channel.port = int(self.station['server']['port'])
-        self.channel.user = 'source'
-        self.channel.password = self.station['server']['sourcepassword']
-        self.channel.public = int(self.station['server']['public'])
-        if self.channel.format == 'mp3':
-            self.channel.audio_info = {'bitrate': str(self.bitrate),
-                                       'samplerate': str(self.samplerate),
-                                       'channels': str(self.voices), }
-        else:
-            self.channel.audio_info = {'bitrate': str(self.bitrate),
-                                       'samplerate': str(self.samplerate),
-                                       'quality': str(self.ogg_quality),
-                                       'channels': str(self.voices), }
+        self.channel = None
+        self.init_playlists()
+
+        # Set this AFTER we've loaded the playlist (so we get the correct data)
+        self.media_format = Media.get_mediatype(self.typefilter)
 
         self.server_url = 'http://' + self.channel.host + ':' + str(self.channel.port)
-        self.channel_url = self.server_url + self.channel.mount
+        self.channel_url = self.server_url + self.get_mountpoint()
+
+        # Initialize the channel object, and bail if we encounter an issue
+        if not self.channel_init():
+            return
 
         # RSS
         if 'feeds' in self.station:
@@ -267,23 +261,6 @@ class Station(ThreadQueueLog):
                 self.osc_controller.add_method('/run', 'i', self.run_callback)
                 self.osc_controller.start()
 
-        # Jingling between each media.
-        if 'jingles' in self.station:
-            if 'mode' in self.station['jingles']:
-                self.jingles_mode = int(self.station['jingles']['mode'])
-            if 'shuffle' in self.station['jingles']:
-                self.jingles_shuffle = int(self.station['jingles']['shuffle'])
-            if 'frequency' in self.station['jingles']:
-                f = int(self.station['jingles']['frequency'])
-                if f > 1:
-                    self.jingles_frequency = f
-            if 'dir' in self.station['jingles']:
-                self.jingles_source = self._path_add_base(self.station['jingles']['dir'])
-            if 'source' in self.station['jingles']:
-                self.jingles_source = self._path_add_base(self.station['jingles']['source'])
-            if self.jingles_mode == 1:
-                self.jingles_callback('/jingles', [1])
-
         # Relaying
         if 'relay' in self.station:
             self.relay_mode = int(self.station['relay']['mode'])
@@ -315,7 +292,53 @@ class Station(ThreadQueueLog):
             if self.record_mode:
                 self.record_callback('/record', [1])
 
+
         self.valid = True
+
+    def get_mountpoint(self):
+        if 'stream-m' in self.type:
+            return '/publish/' + self.mountpoint
+        if 'icecast' in self.type:
+            if self.appendtype and self.media_format:
+                return '/' + self.mountpoint + '.' + self.media_format
+            return '/' + self.mountpoint
+        return ''
+
+    def channel_init(self):
+        if 'stream-m' in self.type:
+            self.channel = HTTPStreamer()
+        elif 'icecast' in self.type:
+            self.channel = shout.Shout()
+        else:
+            self.log_err('Not a compatible server type. Choose "stream-m" or "icecast".')
+            return False
+
+        self.channel.mount = self.get_mountpoint()
+
+        self.channel.url = self.station['infos']['url']
+        self.channel.name = self.station['infos']['name']
+        self.channel.genre = self.station['infos']['genre']
+        self.channel.description = self.station['infos']['description']
+        self.channel.host = self.station['server']['host']
+        self.channel.port = int(self.station['server']['port'])
+
+        self.channel.user = 'source'
+        if 'sourceusername' in self.station['server']:
+            self.channel.user = self.station['server']['sourceusername']
+        if 'sourcepassword' in self.station['server']:
+            self.channel.password = self.station['server']['sourcepassword']
+
+        if 'public' in self.station['server']:
+            self.channel.public = self.station['server']['public']
+
+        self.channel.format = self.media_format
+        self.channel.audio_info = {'bitrate': str(self.bitrate),
+                                   'samplerate': str(self.samplerate),
+                                   'channels': str(self.voices), }
+        if self.channel.format == 'ogg':
+            self.channel.audio_info['quality'] = str(self.ogg_quality)
+
+        return True
 
     def log_msg_hook(self, msg):
         return 'Station %s: %s' % (str(self.channel_url), str(msg))
@@ -334,17 +357,20 @@ class Station(ThreadQueueLog):
 
     def init_jingles(self):
         if not self.jingles_playlist:
-            self.jingles_mode = 0
             self.jingles_length = 0
             self.jingles_playlist = None
             try:
                 self.jingles_playlist = self.get_playlist(self.jingles_source)
+                if not self.jingles_playlist:
+                    self.jingles_mode = 0
+                    return
+
                 if self.jingles_shuffle:
                     self.jingles_playlist.shuffle()
                 self.jingles_length = len(self.jingles_playlist)
                 self.jingles_playlist.frequency = self.jingles_frequency
             except:
-                pass
+                self.jingles_mode = 0
             return
 
         if self.jingles_playlist.isstale():
@@ -478,7 +504,7 @@ class Station(ThreadQueueLog):
                 message = message[:113] + self.feeds_url
                 self.update_twitter(message)
 
-    def get_next_media(self):
+    def init_playlists(self):
         # Init playlist
         if not self.playlist:
             # Attempt to init the playlist if there isn't one already.
@@ -488,12 +514,21 @@ class Station(ThreadQueueLog):
             # We still do not have a valid playlist object.  Bail immediately
             self.log_err('Error getting a playlist object!')
             self.run_mode = 0
-            return None
+            return False
 
         if not len(self.playlist):
             # We still do not have a valid playlist object.  Bail immediately
             self.log_err('There is no media to play!')
             self.run_mode = 0
+            return False
+
+        # Initialize the jingle playlist now too
+        self.init_jingles()
+
+        return True
+
+    def get_next_media(self):
+        if not self.init_playlists():
             return None
 
         if self.counter < 0:
@@ -540,16 +575,16 @@ class Station(ThreadQueueLog):
             self.log_info('Updated playlist (%d tracks)' % self.lp)
 
         # Do the checks to see if we should Jingle!
-        self.init_jingles()
-        should_jingle = self.jingles_playlist.should_play(self.counter)
-        if not self.jingles_mode:
-            should_jingle = False
+        if self.jingles_playlist:
+            should_jingle = self.jingles_playlist.should_play(self.counter)
+            if not self.jingles_mode:
+                should_jingle = False
 
-        if should_jingle:
-            self.jingle_id = self.jingles_playlist.next()
-            self.__save_state()
-            self.current_media_obj = self.jingles_playlist.current_track
-            return self.jingles_playlist.file_list[self.jingle_id]
+            if should_jingle:
+                self.jingle_id = self.jingles_playlist.next()
+                self.__save_state()
+                self.current_media_obj = self.jingles_playlist.current_track
+                return self.jingles_playlist.file_list[self.jingle_id]
 
         if self.next_media > 0:
             self.id = self.playlist.next()
