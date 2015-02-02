@@ -58,14 +58,14 @@ News
  * Reworked the RSS feed handling to allow JSON output as well and more configuration options (@achbed #27 #28)
  * Add an init.d script to act as a deamon (@achbed)
  * Add stationdefaults preference (apply default settings to all stations) (@achbed #31)
- * Add stationfolder preference (generate stations automatically from a folder structure) (@achbed #31) 
+ * Add stationfolder preference (generate stations automatically from a folder structure) (@achbed #31)
  * Add stationconfig preference (load other preference files as stations) (@achbed #31)
  * Add new station.server.appendtype option
  * Add new base_dir parameter to station definition
  * Better thread management (@achbed #36 #37 #38)
  * Improved stability avoiding crashes with automatic station restart methods (@achbed #39 #45)
  * Added option (ignoreerrors) to log and continue when an error occurs during station initialization (@achbed #43)
- * Cleanup, better documentation and good ideas (@choiz #15 #16 #17 #23)
+ * Cleanup, better documentation and good ideas (@ChoiZ #15 #16 #17 #23)
  * Various bugfixes
  * Many thanks to all participants and especially to @achbed for his **huge** work, efficiency and easy collaboration
  * Enjoy!
@@ -141,12 +141,11 @@ Documentation
 =============
 
  * `FAQ and Wiki <https://github.com/yomguy/DeeFuzzer/wiki>`_
- * `API <http://files.parisson.com/doc/deefuzzer/>`_ 
+ * `API <http://files.parisson.com/doc/deefuzzer/>`_
  * `Documented XML configuration <https://github.com/yomguy/DeeFuzzer/blob/master/example/deefuzzer_doc.xml>`_
  * Configuration examples:
-     
+
      * `Dummy XML for testing <https://github.com/yomguy/DeeFuzzer/blob/master/example/deefuzzer.xml>`_
-     * `OGG Vorbis and MP3 together <https://github.com/yomguy/DeeFuzzer/blob/master/example/deefuzzer_mp3_ogg.xml>`_
      * `Generic YAML <https://github.com/yomguy/DeeFuzzer/blob/master/example/deefuzzer.yaml>`_
 
 
@@ -155,7 +154,7 @@ Development
 
 Everybody is welcome to participate to the DeeFuzzer project!
 
-We use GitHub to collaborate: https://github.com/yomguy/DeeFuzzer 
+We use GitHub to collaborate: https://github.com/yomguy/DeeFuzzer
 
 Clone it, star it and join us!
 
@@ -165,7 +164,7 @@ Authors
 
  * @yomguy +GuillaumePellerin yomguy@parisson.com
  * @achbed +achbed github@achbed.org
- * @choiz
+ * @ChoiZ +FrançoisLASSERRE choiz@me.com
 
 
 License
