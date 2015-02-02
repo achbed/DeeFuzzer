@@ -10,15 +10,9 @@
 #
 # Author: Guillaume Pellerin <yomguy@parisson.com>
 
-import os
-import re
-import string
-import mimetypes
-from itertools import chain
-from deefuzzer.tools import *
-from Playlist import *
-
 import mutagen
+
+from deefuzzer.playlistobj import *
 
 mimetypes.add_type('application/x-yaml', '.yaml')
 
@@ -165,41 +159,6 @@ def get_conf_dict(filepath):
         confile.close()
         return json.loads(data)
 
-    return False
-
-
-def folder_contains_audio(folder):
-    """
-    Checks a path for any audio files.
-    :param folder: Path to check for audio files
-    :return: True if any supported audio files are found in the folder, False if not.
-    """
-    files = os.listdir(folder)
-    for fn in files:
-        filepath = os.path.join(folder, fn)
-        if isaudio(filepath):
-            return True
-    return False
-
-
-def isaudio(filepath):
-    """
-    Detects if the given file path is a supported audio file.
-    :param filepath: The path to check
-    :return: True if the file is a supported audio file type, False if not.
-    """
-    if not os.path.isfile(filepath):
-        return False
-
-    fileref = mutagen.File(filepath)
-    if not fileref:
-        return False
-    mime_type = fileref.mime
-    if 'audio/mpeg' in mime_type:
-        return True
-    if 'audio/ogg' in mime_type:
-        return True
-    # Add detection for more file types as needed here
     return False
 
 

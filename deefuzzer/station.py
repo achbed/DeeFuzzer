@@ -129,7 +129,7 @@ class Station(ThreadQueueLog):
         if 'base_dir' in self.station:
             self.base_directory = self.station['base_dir'].strip()
 
-        # Media
+        # mediaobj
         if 'm3u' in self.station['media']:
             if not self.station['media']['m3u'].strip() == '':
                 self.source = self._path_add_base(self.station['media']['m3u'])
@@ -448,7 +448,7 @@ class Station(ThreadQueueLog):
 
         self.q.get(1)
         try:
-            file_list = new_playlist(source)
+            file_list = Playlist.new(source)
         except:
             pass
         self.q.task_done()
@@ -565,7 +565,7 @@ class Station(ThreadQueueLog):
         self.q.get(1)
         try:
             for mediapath in media_list:
-                file_meta = new_media(mediapath)
+                file_meta = Media.new(mediapath)
 
                 if not file_meta:
                     self.log_err('Could not get specific media type class for %s' % mediapath)

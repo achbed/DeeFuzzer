@@ -18,7 +18,7 @@ class PlaylistM3U(PlaylistBase):
                         path = path.strip()
                         if '#' != path[0]:
                             fp = self.path_relative(path)
-                            if isaudio(fp):
+                            if Media.isaudio(fp):
                                 file_paths.append(fp)
                 except:
                     f.close()

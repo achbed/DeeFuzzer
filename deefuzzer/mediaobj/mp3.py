@@ -36,14 +36,13 @@
 
 # Author: Guillaume Pellerin <yomguy@parisson.com>
 
-import os
-import string
-import datetime
 from mutagen.easyid3 import EasyID3
-from mutagen.mp3 import MP3, MPEGInfo
+from mutagen.mp3 import MP3
 from mutagen import id3
+
 from deefuzzer.tools.utils import *
-from mediabase import *
+from deefuzzer.mediaobj.mediabase import *
+
 
 EasyID3.valid_keys["comment"] = "COMM::'XXX'"
 EasyID3.valid_keys["copyright"] = "TCOP::'XXX'"

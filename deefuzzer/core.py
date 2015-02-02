@@ -175,7 +175,7 @@ class DeeFuzzer(Thread):
         for fn in files:
             filepath = os.path.join(folder, fn)
             if os.path.isdir(filepath):
-                if folder_contains_audio(filepath):
+                if Media.folder_contains_audio(filepath):
                     self.create_station(filepath, options)
 
     def station_exists(self, name):

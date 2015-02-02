@@ -1,13 +1,14 @@
 __author__ = 'Dennis Wallace'
 
 import random
-from deefuzzer.tools.utils import *
-from deefuzzer.tools.Media.media import *
+import os
+
+from deefuzzer.mediaobj.media import *
 
 
 class PlaylistBase(object):
     """
-    Base Playlist class. All playlist objects should inherit from this class
+    Base playlistobj class. All playlist objects should inherit from this class
     to allow common functions to be used in core code.  See PlaylistM3U and PlaylistPLS classes
     for examples on how to configure a subclass, and playlist.py to add the new class into the autodetection
     function.
@@ -74,7 +75,7 @@ class PlaylistBase(object):
             index %= l
 
         self.current = l
-        self.current_track = new_media(self.file_list[self.current])
+        self.current_track = Media.new(self.file_list[self.current])
         return self.current
 
     def path_relative(self, p):

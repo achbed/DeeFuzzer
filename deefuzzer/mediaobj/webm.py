@@ -36,11 +36,8 @@
 
 # Author: Guillaume Pellerin <yomguy@parisson.com>
 
-import os
-import string
-import datetime
 from deefuzzer.tools.utils import *
-from mediabase import *
+from deefuzzer.mediaobj.mediabase import *
 
 
 class WebM(MediaBase):

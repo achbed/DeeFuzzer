@@ -44,6 +44,13 @@ class Player:
     """A file streaming iterator"""
 
     def __init__(self, stream_type='icecast'):
+        self.media = None
+        self.url = None
+        self.relay = None
+        self.queue = None
+        self.main_chunk = None
+        self.sub_chunk = None
+
         if stream_type == 'icecast':
             self.main_buffer_size = 0x100000
             self.relay_queue_size = 0x100000
@@ -124,6 +131,7 @@ class URLReader:
         self.__relayparam = relay
         self.relay = urllib.urlopen(self.__relayparam)
         self.rec_mode = 0
+        self.recorder = None
 
     def set_recorder(self, recorder, mode=1):
         self.rec_mode = mode
@@ -144,6 +152,6 @@ class URLReader:
                     time.sleep(0.5)
                     continue
 
-        if self.rec_mode == 1 and chunk:
+        if self.rec_mode == 1 and chunk and self.recorder:
             self.recorder.write(chunk)
         return chunk

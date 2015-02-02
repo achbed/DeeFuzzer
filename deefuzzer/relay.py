@@ -48,6 +48,10 @@ class Relay(Thread):
         self.sub_buffer_size = sub_buffer_size
         self.queue_size = queue_size
         self.queue = Queue.Queue(self.queue_size)
+        self.url = None
+        self.stream = None
+        self.isopen = False
+        self.chunk = None
 
     def set_url(self, url):
         self.url = url
@@ -68,8 +72,7 @@ class Relay(Thread):
             if self.isopen:
                 self.chunk = self.stream.read(self.sub_buffer_size)
                 self.queue.put_nowait(self.chunk)
-#                print self.queue.qsize()
+                # print self.queue.qsize()
             else:
                 self.stream.close()
                 break
-

@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from deefuzzer.tools.Media.webm import *
 import tempfile
 
 
 class MediaBase(object):
     """
-    Base Media class.  All media objects should inherit from this class
+    Base mediaobj class.  All media objects should inherit from this class
     to allow common functions to be used in core code.  See MP3 and OGG classes
     for examples on how to configure a subclass, and media.py to add the new class into the autodetection
     function.

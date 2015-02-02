@@ -6,5 +6,3 @@ from osc import *
 from twitt import *
 from utils import *
 
-from Playlist import *
-from Media import *

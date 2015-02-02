@@ -1,7 +1,7 @@
 __author__ = 'Dennis Wallace'
 
-from deefuzzer.tools.utils import *
-from playlistbase import *
+import re
+from deefuzzer.playlistobj.playlistbase import *
 
 
 class PlaylistPLS(PlaylistBase):
@@ -30,7 +30,7 @@ class PlaylistPLS(PlaylistBase):
                         if re.match("^File[0-9]+=", line):
                             line = re.sub("^File[0-9]+=", "", line).strip()
                             fp = self.path_relative(line)
-                            if isaudio(fp):
+                            if Media.isaudio(fp):
                                 file_paths.append(fp)
                             continue
                 except:

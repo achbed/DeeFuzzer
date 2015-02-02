@@ -1,7 +1,6 @@
 __author__ = 'Dennis Wallace'
 
-from deefuzzer.tools.utils import *
-from playlistbase import *
+from deefuzzer.playlistobj.playlistbase import *
 
 
 class PlaylistFolder(PlaylistBase):
@@ -16,7 +15,7 @@ class PlaylistFolder(PlaylistBase):
                 for root, dirs, files in os.walk(self.filepath):
                     for fn in files:
                         fp = self.path_relative(os.path.join(root, fn))
-                        if isaudio(fp):
+                        if Media.isaudio(fp):
                             file_paths.append(fp)
                 file_paths.sort()
             except:
