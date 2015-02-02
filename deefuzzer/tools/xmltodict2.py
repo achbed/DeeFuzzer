@@ -27,6 +27,7 @@ from xml.parsers import expat
         # default_encoding = enc
 '''
 
+
 # Python seems to need to compile code with \n linesep:
 code_linesep = "\n"
 eol = os.linesep
@@ -49,7 +50,7 @@ class Xml2Obj:
         self._currPropAtt = ""
         self._currPropDict = None
 
-    def StartElement(self, name, attributes):
+    def start_element(self, name, attributes):
         """SAX start element even handler"""
         if name == "code":
             # This is code for the parent element
@@ -98,7 +99,7 @@ class Xml2Obj:
                     self.root = element
                 self.nodeStack.append(element)
 
-    def EndElement(self, name):
+    def end_element(self, name):
         """SAX end element event handler"""
         if self._inCode:
             if name == "code":
@@ -127,7 +128,7 @@ class Xml2Obj:
         else:
             self.nodeStack = self.nodeStack[:-1]
 
-    def CharacterData(self, data):
+    def character_data(self, data):
         """SAX character data event handler"""
         if self._inCode or data.strip():
             data = data.replace("&lt;", "<")
@@ -145,34 +146,34 @@ class Xml2Obj:
                     element["cdata"] = ""
                 element["cdata"] += data
 
-    def Parse(self, xml):
+    def parse(self, xml):
         # Create a SAX parser
-        Parser = expat.ParserCreate()
+        parser = expat.ParserCreate()
         # SAX event handlers
-        Parser.StartElementHandler = self.StartElement
-        Parser.EndElementHandler = self.EndElement
-        Parser.CharacterDataHandler = self.CharacterData
-        # Parse the XML File
-        ParserStatus = Parser.Parse(xml, 1)
+        parser.StartElementHandler = self.start_element
+        parser.EndElementHandler = self.end_element
+        parser.CharacterDataHandler = self.character_data
+        # parse the XML File
+        parserstatus = parser.parse(xml, 1)
         return self.root
 
-    def ParseFromFile(self, filename):
-        return self.Parse(open(filename, "r").read())
+    def parse_from_file(self, filename):
+        return self.parse(open(filename, "r").read())
 
 
-def xmltodict(xml, attsToSkip=None, addCodeFile=False):
+def xmltodict(xml, atts_to_skip=None, add_code_file=False):
     """Given an xml string or file, return a Python dictionary."""
-    if not attsToSkip:
-        attsToSkip = []
+    if not atts_to_skip:
+        atts_to_skip = []
     parser = Xml2Obj()
-    parser.attsToSkip = attsToSkip
-    isPath = os.path.exists(xml)
+    parser.attsToSkip = atts_to_skip
+    ispath = os.path.exists(xml)
     errmsg = ""
     ret = None
-    if eol not in xml and isPath:
+    if eol not in xml and ispath:
         # argument was a file
         try:
-            ret = parser.ParseFromFile(xml)
+            ret = parser.parse_from_file(xml)
         except expat.ExpatError, e:
             errmsg = _("The XML in '%s' is not well-formed and cannot be parsed: %s") % (xml, e)
     else:
@@ -182,24 +183,24 @@ def xmltodict(xml, attsToSkip=None, addCodeFile=False):
             errmsg = _("The file '%s' could not be found") % xml
         else:
             try:
-                ret = parser.Parse(xml)
+                ret = parser.parse(xml)
             except expat.ExpatError:
                 errmsg = _("An invalid XML string was encountered")
     if errmsg:
         raise dabo.dException.XmlException, errmsg
-    if addCodeFile and isPath:
+    if add_code_file and ispath:
         # Get the associated code file, if any
-        codePth = "%s-code.py" % os.path.splitext(xml)[0]
-        if os.path.exists(codePth):
+        codepth = "%s-code.py" % os.path.splitext(xml)[0]
+        if os.path.exists(codepth):
             try:
-                codeDict = desUtil.parseCodeFile(open(codePth).read())
-                desUtil.addCodeToClassDict(ret, codeDict)
+                codedict = desUtil.parseCodeFile(open(codepth).read())
+                desUtil.addCodeToClassDict(ret, codedict)
             except StandardError, e:
                 print "Failed to parse code file:", e
     return ret
 
 
-def escQuote(val, noEscape=False, noQuote=False):
+def escquote(val, noEscape=False, noQuote=False):
     """Add surrounding quotes to the string, and escape
     any illegal XML characters.
     """
@@ -248,8 +249,8 @@ def dicttoxml(dct, level=0, header=None, linesep=None):
     if "attributes" in dct:
         for key, val in dct["attributes"].items():
             # Some keys are already handled.
-            noEscape = key in ("sizerInfo",)
-            val = escQuote(val, noEscape)
+            noescape = key in ("sizerInfo",)
+            val = escquote(val, noescape)
             att += " %s=%s" % (key, val)
     ret += "%s<%s%s" % ("\t" * level, dct["name"], att)
 
@@ -264,7 +265,7 @@ def dicttoxml(dct, level=0, header=None, linesep=None):
         if "code" in dct:
             if len(dct["code"].keys()):
                 ret += "%s%s<code>%s" % (eol, "\t" * (level + 1), eol)
-                methodTab = "\t" * (level + 2)
+                methodtab = "\t" * (level + 2)
                 for mthd, cd in dct["code"].items():
                     # Convert \n's in the code to eol:
                     cd = eol.join(cd.splitlines())
@@ -274,22 +275,22 @@ def dicttoxml(dct, level=0, header=None, linesep=None):
                         cd += eol
 
                     ret += "%s<%s><![CDATA[%s%s]]>%s%s</%s>%s" % (
-                        methodTab, mthd, eol,
+                        methodtab, mthd, eol,
                         cd, eol,
-                        methodTab, mthd, eol
+                        methodtab, mthd, eol
                     )
                 ret += "%s</code>%s" % ("\t" * (level + 1), eol)
 
         if "properties" in dct:
             if len(dct["properties"].keys()):
                 ret += "%s%s<properties>%s" % (eol, "\t" * (level + 1), eol)
-                currTab = "\t" * (level + 2)
+                currtab = "\t" * (level + 2)
                 for prop, val in dct["properties"].items():
-                    ret += "%s<%s>%s" % (currTab, prop, eol)
-                    for propItm, itmVal in val.items():
-                        itmTab = "\t" * (level + 3)
-                        ret += "%s<%s>%s</%s>%s" % (itmTab, propItm, itmVal, propItm, eol)
-                    ret += "%s</%s>%s" % (currTab, prop, eol)
+                    ret += "%s<%s>%s" % (currtab, prop, eol)
+                    for propitm, itmval in val.items():
+                        itmtab = "\t" * (level + 3)
+                        ret += "%s<%s>%s</%s>%s" % (itmtab, propitm, itmval, propitm, eol)
+                    ret += "%s</%s>%s" % (currtab, prop, eol)
                 ret += "%s</properties>%s" % ("\t" * (level + 1), eol)
 
         if "children" in dct:
@@ -314,7 +315,7 @@ def dicttoxml(dct, level=0, header=None, linesep=None):
     return ret
 
 
-def flattenClassDict(cd, retDict=None):
+def flatten_class_dict(cd, retDict=None):
     """Given a dict containing a series of nested objects such as would
     be created by restoring from a cdxml file, returns a dict with all classIDs
     as keys, and a dict as the corresponding value. The dict value will have
@@ -328,48 +329,48 @@ def flattenClassDict(cd, retDict=None):
     props = cd.get("properties", {})
     kids = cd.get("children", [])
     code = cd.get("code", {})
-    classID = atts.get("classID", "")
-    classFile = resolvePath(atts.get("designerClass", ""))
+    classid = atts.get("classID", "")
+    classfile = resolvePath(atts.get("designerClass", ""))
     superclass = resolvePath(atts.get("superclass", ""))
-    superclassID = atts.get("superclassID", "")
-    if superclassID and os.path.exists(superclass):
+    superclassid = atts.get("superclassID", "")
+    if superclassid and os.path.exists(superclass):
         # Get the superclass info
-        superCD = xmltodict(superclass, addCodeFile=True)
-        flattenClassDict(superCD, retDict)
-    if classID:
-        if os.path.exists(classFile):
+        supercd = xmltodict(superclass, add_code_file=True)
+        flatten_class_dict(supercd, retDict)
+    if classid:
+        if os.path.exists(classfile):
             # Get the class info
-            classCD = xmltodict(classFile, addCodeFile=True)
-            classAtts = classCD.get("attributes", {})
-            classProps = classCD.get("properties", {})
-            classCode = classCD.get("code", {})
-            classKids = classCD.get("children", [])
-            currDict = retDict.get(classID, {})
-            retDict[classID] = {
-                "attributes": classAtts,
-                "code": classCode,
-                "properties": classProps
+            classcd = xmltodict(classfile, add_code_file=True)
+            classatts = classcd.get("attributes", {})
+            classprops = classcd.get("properties", {})
+            classcode = classcd.get("code", {})
+            classkids = classcd.get("children", [])
+            currdict = retDict.get(classid, {})
+            retDict[classid] = {
+                "attributes": classatts,
+                "code": classcode,
+                "properties": classprops
             }
-            retDict[classID].update(currDict)
+            retDict[classid].update(currdict)
             # Now update the child objects in the dict
-            for kid in classKids:
-                flattenClassDict(kid, retDict)
+            for kid in classkids:
+                flatten_class_dict(kid, retDict)
         else:
             # Not a file; most likely just a component in another class
-            currDict = retDict.get(classID, {})
-            retDict[classID] = {
+            currdict = retDict.get(classid, {})
+            retDict[classid] = {
                 "attributes": atts,
                 "code": code,
                 "properties": props
             }
-            retDict[classID].update(currDict)
+            retDict[classid].update(currdict)
     if kids:
         for kid in kids:
-            flattenClassDict(kid, retDict)
+            flatten_class_dict(kid, retDict)
     return retDict
 
 
-def addInheritedInfo(src, superclass, updateCode=False):
+def add_inherited_info(src, superclass, updateCode=False):
     """Called recursively on the class container structure, modifying
     the attributes to incorporate superclass information. When the
     'updateCode' parameter is True, superclass code is added to the
@@ -379,19 +380,19 @@ def addInheritedInfo(src, superclass, updateCode=False):
     props = src.get("properties", {})
     kids = src.get("children", [])
     code = src.get("code", {})
-    classID = atts.get("classID", "")
-    if classID:
-        superInfo = superclass.get(classID, {"attributes": {}, "code": {}, "properties": {}})
-        src["attributes"] = superInfo["attributes"].copy()
+    classid = atts.get("classID", "")
+    if classid:
+        superinfo = superclass.get(classid, {"attributes": {}, "code": {}, "properties": {}})
+        src["attributes"] = superinfo["attributes"].copy()
         src["attributes"].update(atts)
-        src["properties"] = superInfo.get("properties", {}).copy()
+        src["properties"] = superinfo.get("properties", {}).copy()
         src["properties"].update(props)
         if updateCode:
-            src["code"] = superInfo["code"].copy()
+            src["code"] = superinfo["code"].copy()
             src["code"].update(code)
     if kids:
         for kid in kids:
-            addInheritedInfo(kid, superclass, updateCode)
+            add_inherited_info(kid, superclass, updateCode)
 
 '''
 # if __name__ == "__main__":

@@ -93,7 +93,7 @@ class Media:
         :param ext: The name to look up
         :return: The mime type to use
         """
-        types = {mp3:"mpeg/audio", ogg:"audio/ogg", webm:"video/webm"}
+        types = {mp3: "mpeg/audio", ogg: "audio/ogg", webm: "video/webm"}
         if ext in types:
             return types[ext]
 

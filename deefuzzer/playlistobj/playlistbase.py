@@ -1,6 +1,7 @@
 __author__ = 'Dennis Wallace'
 
 import random
+from deefuzzer.tools.utils import *
 from deefuzzer.mediaobj.media import *
 
 

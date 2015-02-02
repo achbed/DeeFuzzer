@@ -1,5 +1,6 @@
 __author__ = 'Dennis Wallace'
 
+import os
 from deefuzzer.playlistobj.playlistbase import *
 
 

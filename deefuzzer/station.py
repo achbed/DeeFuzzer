@@ -112,6 +112,7 @@ class Station(ThreadQueueLog):
         self.song = ""
         self.metadata_file = ""
         self.typefilter = ""
+        self.channel_delay = 0
 
         self.station = station
         self.q = lock_queue
@@ -785,7 +786,7 @@ class Station(ThreadQueueLog):
 
         while not self.server_ping:
             try:
-                server = urllib.urlopen(self.server_url)
+                urllib.urlopen(self.server_url)
                 self.server_ping = True
                 self.log_info('Channel available.')
             except:

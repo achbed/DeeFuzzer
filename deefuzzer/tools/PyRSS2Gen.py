@@ -31,6 +31,9 @@ class WriteXmlMixin:
         self.write_xml(f, encoding)
         return f.getvalue()
 
+    def publish(self, handler):
+        return
+
 
 def _element(handler, name, obj, d=None):
     if not d:
@@ -132,11 +135,11 @@ class Cloud:
     """Publish a cloud"""
 
     def __init__(self, domain, port, path,
-                 registerProcedure, protocol):
+                 registerprocedure, protocol):
         self.domain = domain
         self.port = port
         self.path = path
-        self.registerProcedure = registerProcedure
+        self.registerProcedure = registerprocedure
         self.protocol = protocol
 
     def publish(self, handler):
@@ -324,6 +327,8 @@ class RSS2(WriteXmlMixin):
         skipDays=None,  # a SkipDays with a list of strings
         items=None  # list of RSSItems
     ):
+        WriteXmlMixin.__init__(self)
+
         self.title = title
         self.link = link
         self.description = description
@@ -366,15 +371,15 @@ class RSS2(WriteXmlMixin):
         _opt_element(handler, "managingEditor", self.managingEditor)
         _opt_element(handler, "webMaster", self.webMaster)
 
-        pubDate = self.pubDate
-        if isinstance(pubDate, datetime.datetime):
-            pubDate = DateElement("pubDate", pubDate)
-        _opt_element(handler, "pubDate", pubDate)
+        pubdate = self.pubDate
+        if isinstance(pubdate, datetime.datetime):
+            pubdate = DateElement("pubDate", pubdate)
+        _opt_element(handler, "pubDate", pubdate)
 
-        lastBuildDate = self.lastBuildDate
-        if isinstance(lastBuildDate, datetime.datetime):
-            lastBuildDate = DateElement("lastBuildDate", lastBuildDate)
-        _opt_element(handler, "lastBuildDate", lastBuildDate)
+        lastbuilddate = self.lastBuildDate
+        if isinstance(lastbuilddate, datetime.datetime):
+            lastbuilddate = DateElement("lastBuildDate", lastbuilddate)
+        _opt_element(handler, "lastBuildDate", lastbuilddate)
 
         for category in self.categories:
             if isinstance(category, basestring):
@@ -432,6 +437,7 @@ class RSSItem(WriteXmlMixin):
         pubDate=None,  # a datetime
         source=None  # a Source
     ):
+        WriteXmlMixin.__init__(self)
 
         if title is None and description is None:
             raise TypeError(
@@ -468,10 +474,10 @@ class RSSItem(WriteXmlMixin):
             self.enclosure.publish(handler)
         _opt_element(handler, "guid", self.guid)
 
-        pubDate = self.pubDate
-        if isinstance(pubDate, datetime.datetime):
-            pubDate = DateElement("pubDate", pubDate)
-        _opt_element(handler, "pubDate", pubDate)
+        pubdate = self.pubDate
+        if isinstance(pubdate, datetime.datetime):
+            pubdate = DateElement("pubDate", pubdate)
+        _opt_element(handler, "pubDate", pubdate)
 
         if self.source is not None:
             self.source.publish(handler)
