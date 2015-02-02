@@ -1,11 +1,11 @@
 __author__ = 'Dennis Wallace'
 
-from deefuzzer.tools.utils import *
+from deefuzzer.playlistobj.playlistbase import *
 
 
 class PlaylistM3U(PlaylistBase):
-    def __init__(self, filepath):
-        PlaylistBase.__init__(self, filepath)
+    def __init__(self, filepath, typefilter=""):
+        PlaylistBase.__init__(self, filepath, typefilter)
         self.read_playlist()
 
     def get_playlist(self):
@@ -17,7 +17,7 @@ class PlaylistM3U(PlaylistBase):
                     for path in f.readlines():
                         path = path.strip()
                         if '#' != path[0]:
-                            fp = self.path_relative(path)
+                            fp = self.path_to_absolute(path)
                             if Media.isaudio(fp):
                                 file_paths.append(fp)
                 except:

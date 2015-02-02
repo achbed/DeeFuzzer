@@ -1,6 +1,7 @@
 __author__ = 'Dennis Wallace'
 
 from deefuzzer.mediaobj import *
+import mutagen
 import mimetypes
 
 
@@ -60,11 +61,12 @@ class Media:
         return False
 
     @staticmethod
-    def isaudio(filepath):
+    def isaudio(filepath, mimetype=""):
         """
-        Detects if the given file path is a supported audio file.
+        Detects if the given file path is a supported audio file, or
         :param filepath: The path to check
-        :return: True if the file is a supported audio file type, False if not.
+        :param mimetype: An optional mimetype to match.
+        :return: True if the file is a supported audio file type (or matches the mimetype if given), False if not.
         """
         if not os.path.isfile(filepath):
             return False
@@ -72,10 +74,31 @@ class Media:
         fileref = mutagen.File(filepath)
         if not fileref:
             return False
-        mime_type = fileref.mime
-        if 'audio/mpeg' in mime_type:
+        filetype = fileref.mime
+
+        if mimetype:
+            return mimetype in filetype
+
+        if 'audio/mpeg' in filetype:
             return True
-        if 'audio/ogg' in mime_type:
+        if 'audio/ogg' in filetype:
             return True
         # Add detection for more file types as needed here
         return False
+
+    @staticmethod
+    def get_mimetype(ext):
+        """
+        Returns the mime type to use as a filter in the Playlist.new method, given a filename extension or mime type.
+        :param ext: The name to look up
+        :return: The mime type to use
+        """
+        types = {mp3:"mpeg/audio", ogg:"audio/ogg", webm:"video/webm"}
+        if ext in types:
+            return types[ext]
+
+        types = ["mpeg/audio", "audio/ogg", "video/webm"]
+        if ext in types:
+            return types[ext]
+
+        return ""

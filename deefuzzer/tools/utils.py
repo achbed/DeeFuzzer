@@ -10,9 +10,12 @@
 #
 # Author: Guillaume Pellerin <yomguy@parisson.com>
 
-import mutagen
-
-from deefuzzer.playlistobj import *
+import os
+import mimetypes
+import re
+import string
+from itertools import *
+from deefuzzer.tools.xmltodict import *
 
 mimetypes.add_type('application/x-yaml', '.yaml')
 
@@ -183,5 +186,4 @@ def get_md5(word):
         pass
 
     return ""
-
 

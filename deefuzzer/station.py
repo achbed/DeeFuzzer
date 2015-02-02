@@ -53,6 +53,8 @@ from recorder import *
 from relay import *
 from streamer import *
 from tools import *
+from playlistobj import *
+from mediaobj import *
 
 
 class Station(ThreadQueueLog):
@@ -109,6 +111,7 @@ class Station(ThreadQueueLog):
         self.artist = ""
         self.song = ""
         self.metadata_file = ""
+        self.typefilter = ""
 
         self.station = station
         self.q = lock_queue
@@ -142,7 +145,9 @@ class Station(ThreadQueueLog):
             if not self.station['media']['source'].strip() == '':
                 self.source = self._path_add_base(self.station['media']['source'])
 
-        self.media_format = self.station['media']['format']
+        if 'format' in self.station['media']:
+            self.media_format = self.station['media']['format']
+            self.typefilter = Media.get_mimetype(self.media_format)
         self.shuffle_mode = int(self.station['media']['shuffle'])
         self.bitrate = int(self.station['media']['bitrate'])
         self.ogg_quality = int(self.station['media']['ogg_quality'])
@@ -341,7 +346,7 @@ class Station(ThreadQueueLog):
                 pass
             return
 
-        if self.jingles_playlist.stale():
+        if self.jingles_playlist.isstale():
             self.jingles_playlist.read_playlist()
             if self.jingles_shuffle:
                 self.jingles_playlist.shuffle()
@@ -422,7 +427,7 @@ class Station(ThreadQueueLog):
 
             if self.type == 'icecast':
                 date = datetime.datetime.now().strftime("%Y")
-                media_file = new_media(os.path.join(self.record_dir, self.rec_file))
+                media_file = Media.new(os.path.join(self.record_dir, self.rec_file))
                 if media_file:
                     media_file.metadata = {'artist': self.artist.encode('utf-8'),
                                            'title': self.title.encode('utf-8'),
@@ -448,7 +453,7 @@ class Station(ThreadQueueLog):
 
         self.q.get(1)
         try:
-            file_list = Playlist.new(source)
+            file_list = Playlist.new(source, self.typefilter)
         except:
             pass
         self.q.task_done()
@@ -501,7 +506,7 @@ class Station(ThreadQueueLog):
 
         self.new_tracks = []
 
-        if self.playlist.stale():
+        if self.playlist.isstale():
             # Twitting new tracks
             playlist_set = self.playlist.file_list
             self.playlist.read_playlist()

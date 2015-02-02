@@ -5,8 +5,8 @@ from deefuzzer.playlistobj.playlistbase import *
 
 
 class PlaylistPLS(PlaylistBase):
-    def __init__(self, filepath):
-        PlaylistBase.__init__(self, filepath)
+    def __init__(self, filepath, typefilter=""):
+        PlaylistBase.__init__(self, filepath, typefilter)
         self.read_playlist()
 
     def get_playlist(self):
@@ -29,7 +29,7 @@ class PlaylistPLS(PlaylistBase):
 
                         if re.match("^File[0-9]+=", line):
                             line = re.sub("^File[0-9]+=", "", line).strip()
-                            fp = self.path_relative(line)
+                            fp = self.path_to_absolute(line)
                             if Media.isaudio(fp):
                                 file_paths.append(fp)
                             continue

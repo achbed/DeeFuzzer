@@ -4,8 +4,8 @@ from deefuzzer.playlistobj.playlistbase import *
 
 
 class PlaylistFolder(PlaylistBase):
-    def __init__(self, filepath):
-        PlaylistBase.__init__(self, filepath)
+    def __init__(self, filepath, typefilter=""):
+        PlaylistBase.__init__(self, filepath, typefilter)
         self.read_playlist()
 
     def get_playlist(self):
@@ -14,7 +14,7 @@ class PlaylistFolder(PlaylistBase):
             try:
                 for root, dirs, files in os.walk(self.filepath):
                     for fn in files:
-                        fp = self.path_relative(os.path.join(root, fn))
+                        fp = self.path_to_absolute(os.path.join(root, fn))
                         if Media.isaudio(fp):
                             file_paths.append(fp)
                 file_paths.sort()
