@@ -122,12 +122,16 @@ class PlaylistBase(object):
 
     def read_playlist(self):
         """
-        Reads the playlist data into the internal data structures, filtering for the requested media type
+        Reads the playlist data into the internal data structures, filtering for the requested media type.  If no
+        media type is given, the first valid media file is used to filter the rest of the files.
         :return: None
         """
         self.file_list = []
         for i in self.get_playlist():
             if Media.isaudio(i, self.filter):
+                if not self.filter:
+                    m = Media.new(i)
+                    self.filter = m.mime_type
                 self.file_list.append(i)
         self.hash = self.gethash(self.file_list)
 

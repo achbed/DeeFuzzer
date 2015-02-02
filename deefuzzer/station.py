@@ -455,6 +455,10 @@ class Station(ThreadQueueLog):
         self.q.get(1)
         try:
             file_list = Playlist.new(source, self.typefilter)
+
+            # If we didn't start with a filter, get what the playlist just used apply that
+            if not self.typefilter and file_list:
+                self.typefilter = file_list.filter
         except:
             pass
         self.q.task_done()
