@@ -103,9 +103,9 @@ def replace_all(source, repl, tags=None):
     """
     if not tags:
         tags = {}
-    if not tags["open"]:
+    if "open" not in tags:
         tags["open"] = "["
-    if not tags["close"]:
+    if "close" not in tags:
         tags["close"] = "]"
 
     output = source

@@ -3,6 +3,7 @@ __author__ = 'Dennis Wallace'
 from deefuzzer.mediaobj import *
 import mutagen
 import mimetypes
+import os
 
 
 class Media:

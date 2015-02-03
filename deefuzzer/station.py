@@ -57,12 +57,20 @@ from playlistobj import *
 from mediaobj import *
 
 
-class Station(ThreadQueueLog):
+class Station(Thread, LogCommon):
     """a DeeFuzzer shouting station thread"""
 
     def __init__(self, station, lock_queue, log_queue, m3u):
-        ThreadQueueLog.__init__(self, log_queue)
+        Thread.__init__(self)
+        LogCommon.__init__(self)
         
+        self.logqueue = log_queue
+        self.station = station
+        self.q = lock_queue
+        self.m3u = m3u
+
+        self.log_debug("Starting station init")
+
         self.new_tracks = []
         self.mediafile = ""
         self.jingle_id = 0
@@ -114,12 +122,9 @@ class Station(ThreadQueueLog):
         self.typefilter = ""
         self.channel_delay = 0
 
-        self.station = station
-        self.q = lock_queue
-        self.m3u = m3u
-
         self.current_media_obj = MediaBase()
 
+        self.log_debug("Init: Getting station_statusfile")
         if 'station_statusfile' in self.station:
             self.statusfile = station['station_statusfile']
             try:
@@ -130,9 +135,11 @@ class Station(ThreadQueueLog):
             except:
                 pass
 
+        self.log_debug("Init: Getting base_dir")
         if 'base_dir' in self.station:
             self.base_directory = self.station['base_dir'].strip()
 
+        self.log_debug("Init: Getting source")
         # mediaobj
         if 'm3u' in self.station['media']:
             if not self.station['media']['m3u'].strip() == '':
@@ -146,14 +153,18 @@ class Station(ThreadQueueLog):
             if not self.station['media']['source'].strip() == '':
                 self.source = self._path_add_base(self.station['media']['source'])
 
+        self.log_debug("Init: Getting media format")
         if 'format' in self.station['media']:
             self.typefilter = Media.get_mimetype(self.station['media']['format'])
+
+        self.log_debug("Init: Getting media settings")
         self.shuffle_mode = int(self.station['media']['shuffle'])
         self.bitrate = int(self.station['media']['bitrate'])
         self.ogg_quality = int(self.station['media']['ogg_quality'])
         self.samplerate = int(self.station['media']['samplerate'])
         self.voices = int(self.station['media']['voices'])
 
+        self.log_debug("Init: Getting mountpoint")
         # Server
         if 'mountpoint' in self.station['server']:
             self.mountpoint = self.station['server']['mountpoint']
@@ -164,15 +175,18 @@ class Station(ThreadQueueLog):
 
         self.short_name = self.mountpoint
 
+        self.log_debug("Init: Getting appendtype")
         if 'appendtype' in self.station['server']:
             self.appendtype = int(self.station['server']['appendtype'])
 
+        self.log_debug("Init: Getting station type")
         if 'type' in self.station['server']:
             self.type = self.station['server']['type']  # 'icecast' | 'stream-m'
         else:
             self.type = 'icecast'
 
         # Jingling between each media.
+        self.log_debug("Init: Getting jingles")
         if 'jingles' in self.station:
             if 'mode' in self.station['jingles']:
                 self.jingles_mode = int(self.station['jingles']['mode'])
@@ -310,7 +324,7 @@ class Station(ThreadQueueLog):
         elif 'icecast' in self.type:
             self.channel = shout.Shout()
         else:
-            self.log_err('Not a compatible server type. Choose "stream-m" or "icecast".')
+            self.log_error('Not a compatible server type. Choose "stream-m" or "icecast".')
             return False
 
         self.channel.mount = self.get_mountpoint()
@@ -340,9 +354,6 @@ class Station(ThreadQueueLog):
 
         return True
 
-    def log_msg_hook(self, msg):
-        return 'Station %s: %s' % (str(self.channel_url), str(msg))
-        
     def _path_add_base(self, a):
         self.log_debug('_path_add_base: Attempting to join "%s" and "%s"' % (self.base_directory, a))
         r = path_strip_parents(os.path.join(self.base_directory, a))
@@ -356,6 +367,7 @@ class Station(ThreadQueueLog):
         return r
 
     def init_jingles(self):
+        self.log_debug("Init: Initializing jingles")
         if not self.jingles_playlist:
             self.jingles_length = 0
             self.jingles_playlist = None
@@ -379,6 +391,25 @@ class Station(ThreadQueueLog):
                 self.jingles_playlist.shuffle()
             self.jingles_length = len(self.jingles_playlist)
             self.jingles_playlist.frequency = self.jingles_frequency
+
+    def log_msg_hook(self, msg):
+        return 'Station %s: %s' % (str(self.channel_url), str(msg))
+
+    def _log(self, level, msg):
+        try:
+            obj = {'msg': 'Station ' + str(self.channel_url) + ': ' + str(msg), 'level': str(level)}
+            self.logqueue.put(obj)
+        except:
+            pass
+
+    def _debug(self, msg):
+        self._log('debug', msg)
+
+    def _info(self, msg):
+        self._log('info', msg)
+
+    def _err(self, msg):
+        self._log('err', msg)
 
     def run_callback(self, path, value):
         value = value[0]
@@ -505,6 +536,7 @@ class Station(ThreadQueueLog):
                 self.update_twitter(message)
 
     def init_playlists(self):
+        self.log_debug("Init: Initializing playlists")
         # Init playlist
         if not self.playlist:
             # Attempt to init the playlist if there isn't one already.
@@ -512,19 +544,20 @@ class Station(ThreadQueueLog):
 
         if not self.playlist:
             # We still do not have a valid playlist object.  Bail immediately
-            self.log_err('Error getting a playlist object!')
+            self.log_error('Error getting a playlist object!')
             self.run_mode = 0
             return False
 
         if not len(self.playlist):
             # We still do not have a valid playlist object.  Bail immediately
-            self.log_err('There is no media to play!')
+            self.log_error('There is no media to play!')
             self.run_mode = 0
             return False
 
         # Initialize the jingle playlist now too
         self.init_jingles()
 
+        self.log_debug("Init: Finished playlist initialization")
         return True
 
     def get_next_media(self):
@@ -613,7 +646,7 @@ class Station(ThreadQueueLog):
                 file_meta = Media.new(mediapath)
 
                 if not file_meta:
-                    self.log_err('Could not get specific media type class for %s' % mediapath)
+                    self.log_error('Could not get specific media type class for %s' % mediapath)
                     continue
 
                 media_objs.append(file_meta)
@@ -722,7 +755,7 @@ class Station(ThreadQueueLog):
             self.twitter.post(message.decode('utf8'))
             self.log_info('Twitting : "' + message + '"')
         except:
-            self.log_err('Twitting : "' + message + '"')
+            self.log_error('Twitting : "' + message + '"')
 
     def set_relay_mode(self):
         self.prefix = '#nowplaying #LIVE'
@@ -808,7 +841,7 @@ class Station(ThreadQueueLog):
             self.channelIsOpen = True
             return True
         except:
-            self.log_err('channel could not be opened')
+            self.log_error('channel could not be opened')
 
         return False
 
@@ -818,7 +851,7 @@ class Station(ThreadQueueLog):
             self.channel.close()
             self.log_info('channel closed')
         except:
-            self.log_err('channel could not be closed')
+            self.log_error('channel could not be closed')
 
     def ping_server(self):
         log = True
@@ -831,7 +864,7 @@ class Station(ThreadQueueLog):
             except:
                 time.sleep(1)
                 if log:
-                    self.log_err('Could not connect the channel.  Waiting for channel to become available.')
+                    self.log_error('Could not connect the channel.  Waiting for channel to become available.')
                     log = False
 
     def icecastloop_nextmedia(self):
@@ -843,13 +876,13 @@ class Station(ThreadQueueLog):
                 self.set_relay_mode()
             elif os.path.exists(self.mediafile) and not os.sep + '.' in self.mediafile:
                 if self.lp == 0:
-                    self.log_err('has no media to stream !')
+                    self.log_error('has no media to stream !')
                     return False
                 self.set_read_mode()
 
             return True
         except Exception, e:
-            self.log_err('icecastloop_nextmedia: Error: ' + str(e))
+            self.log_error('icecastloop_nextmedia: Error: ' + str(e))
         return False
 
     def __twitter_should_update(self):
@@ -873,7 +906,7 @@ class Station(ThreadQueueLog):
             self.channel.set_metadata({'song': self.song, 'charset': 'utf-8'})
             return True
         except Exception, e:
-            self.log_err('icecastloop_metadata: Error: ' + str(e))
+            self.log_error('icecastloop_metadata: Error: ' + str(e))
         return False
 
     def run(self):
@@ -918,17 +951,17 @@ class Station(ThreadQueueLog):
                                 # Record the chunk
                                 self.recorder.write(self.chunk)
                             except:
-                                self.log_err('could not write the buffer to the file')
+                                self.log_error('could not write the buffer to the file')
 
                         try:
                             # Send the chunk to the stream
                             self.channel.send(self.chunk)
                             self.channel.sync()
                         except:
-                            self.log_err('could not send the buffer')
+                            self.log_error('could not send the buffer')
                             self.channel_close()
                             if not self.channel_open():
-                                self.log_err('could not restart the channel')
+                                self.log_error('could not restart the channel')
                                 if self.record_mode:
                                     self.recorder.close()
                                 return
@@ -938,7 +971,7 @@ class Station(ThreadQueueLog):
                                 self.channel.send(self.chunk)
                                 self.channel.sync()
                             except:
-                                self.log_err('could not send data after restarting the channel')
+                                self.log_error('could not send data after restarting the channel')
                                 self.channel_close()
                                 if self.record_mode:
                                     self.recorder.close()
