@@ -5,4 +5,6 @@ from logger import *
 from osc import *
 from twitt import *
 from utils import *
+from configreader import *
+
 

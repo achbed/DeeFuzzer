@@ -34,11 +34,6 @@ class PlaylistBase(object):
 
         self.read_playlist()
 
-    def __hash__(self):
-        if not self.hash:
-            self.hash = self.gethash(self.file_list)
-        return self.hash
-
     def __len__(self):
         return len(self.file_list)
 
@@ -127,7 +122,8 @@ class PlaylistBase(object):
         :return: None
         """
         self.file_list = []
-        for i in self.get_playlist():
+        pl = self.get_playlist()
+        for i in pl:
             if Media.isaudio(i, self.filter):
                 if not self.filter:
                     m = Media.new(i)
@@ -143,12 +139,14 @@ class PlaylistBase(object):
         """
         return []
 
-    def gethash(self, filelist):
+    def gethash(self, filelist=None):
         """
         Gets a unique hash for the playlist, incorporating enough details to detect when a media file changes
         :param filelist: The list of media paths to hash
         :return: The resulting hash value
         """
+        if not filelist:
+            filelist = self.file_list
         hash_source = self.filepath
         if os.path.exists(self.filepath):
             hash_source += str(os.path.getmtime(self.filepath))

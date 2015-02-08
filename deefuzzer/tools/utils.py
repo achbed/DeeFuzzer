@@ -48,8 +48,6 @@ def clean_word(word):
     :param word: The word to clean
     :return: The cleaned word
     """
-    """ Return the word without excessive blank spaces, underscores and
-    characters causing problem to exporters"""
     word = re.sub("^[^\w]+", "", word)  # trim the beginning
     word = re.sub("[^\w]+$", "", word)  # trim the end
     word = re.sub("_+", "_", word)  # squeeze continuous _ to one _
@@ -63,10 +61,14 @@ def clean_word(word):
 
 
 def get_file_info(filepath):
-    file_name = filepath.split(os.sep)[-1]
-    file_title = file_name.split('.')[:-1]
-    file_title = '.'.join(file_title)
-    file_ext = file_name.split('.')[-1]
+    """
+    Returns the filename (name + extension), filetitle (name only) and extension as three-part return value. Uses
+    the os.path functions to provide cross-platform support
+    :param filepath:
+    :return: (filename, filetitle, extension)
+    """
+    (folder, file_name) = os.path.split(filepath)
+    (file_title, file_ext) = os.path.splitext(file_name)
     return file_name, file_title, file_ext
 
 
@@ -187,3 +189,17 @@ def get_md5(word):
 
     return ""
 
+def ping_url(url, timeout_connect=5, timeout_read=10):
+    import pycurl
+
+    c = pycurl.Curl()
+    c.setopt(c.URL, url)
+    c.setopt(c.CONNECTTIMEOUT, int(timeout_connect))
+    c.setopt(c.TIMEOUT, int(timeout_read))
+    c.setopt(c.FAILONERROR, True)
+    try:
+        c.perform()
+    except:
+        return False
+
+    return True

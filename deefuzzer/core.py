@@ -49,8 +49,17 @@ from deefuzzer.tools import *
 mimetypes.add_type('application/x-yaml', '.yaml')
 
 
-class DeeFuzzer(Thread, LogCommon):
+class DeeFuzzer(Thread, LogCommon, ConfigReader):
     """a DeeFuzzer diffuser"""
+
+    def log_msg_hook(self, msg):
+        """
+        Implement this in child classes to alter the log message before output.  Useful to prepend a class name
+        or identifier for code tracing.
+        :param msg: The message to alter
+        :return: The message to log
+        """
+        return "Core: %s" % str(msg)
 
     def __init__(self, conf_file):
         Thread.__init__(self)
@@ -72,6 +81,8 @@ class DeeFuzzer(Thread, LogCommon):
 
         if 'deefuzzer' not in self.conf:
             return
+
+        ConfigReader.__init__(self, self.conf)
 
         # Get the log setting first (if possible)
         log_file = str(self.conf['deefuzzer'].pop('log', ''))
@@ -122,22 +133,6 @@ class DeeFuzzer(Thread, LogCommon):
         # Set the deefuzzer logger
         self.log_info('Defined %d stations from configuration' % len(self.station_settings))
         self.log_info('Initialization complete')
-
-    def log_msg_hook(self, msg):
-        return "Core: %s" % str(msg)
-
-    def _log(self, level, msg):
-        try:
-            obj = {'msg': 'Core: ' + str(msg), 'level': level}
-            self.logqueue.put(obj)
-        except:
-            pass
-
-    def _info(self, msg):
-        self._log('info', msg)
-
-    def _err(self, msg):
-        self._log('err', msg)
 
     def set_m3u_playlist(self):
         m3u_dir = os.sep.join(self.m3u.split(os.sep)[:-1])
