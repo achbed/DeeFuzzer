@@ -164,7 +164,7 @@ Authors
 
  * @yomguy +GuillaumePellerin yomguy@parisson.com
  * @achbed +achbed github@achbed.org
- * @ChoiZ +FrançoisLASSERRE choiz@me.com
+ * @ChoiZ +FranÃ§oisLASSERRE choiz@me.com
 
 
 License
